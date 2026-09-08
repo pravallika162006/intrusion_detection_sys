@@ -1,0 +1,6 @@
+Model,Accuracy,Macro Precision,Macro Recall,Macro F1,Weighted Precision,Weighted Recall,Weighted F1,Training Time (s),Prediction Time (s)
+Decision Tree,0.7476,0.5079,0.5257,0.5005,0.8163,0.7476,0.7711,5.2369,0.0538
+ANN,0.7568,0.4951,0.4725,0.4365,0.8182,0.7568,0.7591,68.7541,0.6156
+kNN,0.709,0.5147,0.4167,0.4104,0.7905,0.709,0.7385,0.0993,67.7447
+Logistic Regression,0.6981,0.3769,0.386,0.3394,0.7862,0.6981,0.706,89.4102,0.0436
+SVM (LinearSVC),0.6841,0.3345,0.3733,0.3356,0.7733,0.6841,0.7005,649.2434,0.0597
