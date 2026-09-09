@@ -9,7 +9,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler, LabelEncoder
+from sklearn.preprocessing import OneHotEncoder, MinMaxScaler, LabelEncoder
 
 from backend.config import (
     CATEGORICAL_FEATURES,
@@ -31,7 +31,7 @@ def create_19_column_transformer(
     Constructs an un-fitted ColumnTransformer pipeline for the selected 19 features:
     - Identifies which of the 19 are categorical (proto, service, state) vs numerical.
     - OneHotEncoder for categorical features (handle_unknown='ignore')
-    - StandardScaler for numerical features
+    - MinMaxScaler(feature_range=(0, 1)) for numerical features
     """
     cat_in_19 = [f for f in selected_19_features if f in CATEGORICAL_FEATURES]
     num_in_19 = [f for f in selected_19_features if f not in CATEGORICAL_FEATURES]
@@ -43,7 +43,7 @@ def create_19_column_transformer(
         )
     if num_in_19:
         transformers.append(
-            ("num", StandardScaler(), num_in_19)
+            ("num", MinMaxScaler(feature_range=(0, 1)), num_in_19)
         )
 
     preprocessor = ColumnTransformer(transformers=transformers, remainder="drop")

@@ -1,0 +1,11 @@
+Task,Model,Paper_Accuracy,Original_Project_Accuracy,Corrected_MinMax_Accuracy,Diff_From_Paper_pp,Diff_From_Original_pp,Notes
+Binary,Decision Tree,0.8813,0.8685,0.8621,-1.92,-0.64,MinMaxScaler unconstrained tree
+Binary,ANN,0.8671,0.8563,0.8384,-2.87,-1.79,MinMaxScaler + Keras EarlyStopping
+Binary,kNN,0.8318,0.8451,0.8480,+1.62,+0.29,MinMaxScaler + k=5 Euclidean
+Binary,Logistic Regression,0.7959,0.8097,0.8061,+1.02,-0.36,MinMaxScaler + L2 penalty
+Binary,SVM,0.6242,0.8122,N/A (Impractical),+18.80 (LinearSVC),N/A,RBF kernel full fit is computationally impractical; LinearSVC preserved
+Multiclass,Decision Tree,0.6603,0.7476,0.7476,+8.73,0.00,Preserved original baseline
+Multiclass,ANN,0.7562,0.7568,0.7568,+0.06,0.00,Preserved original baseline
+Multiclass,kNN,0.7009,0.7090,0.7090,+0.81,0.00,Preserved original baseline
+Multiclass,Logistic Regression,0.6553,0.6981,0.6981,+4.28,0.00,Preserved original baseline
+Multiclass,SVM,0.6109,0.6841,N/A (Impractical),+7.32 (LinearSVC),N/A,RBF kernel 45-pairwise fit is computationally impractical; LinearSVC preserved

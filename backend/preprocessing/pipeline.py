@@ -9,7 +9,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler, LabelEncoder
+from sklearn.preprocessing import OneHotEncoder, MinMaxScaler, LabelEncoder
 
 from backend.config import (
     CATEGORICAL_FEATURES,
@@ -27,7 +27,7 @@ def create_column_transformer() -> ColumnTransformer:
     """
     Constructs an un-fitted ColumnTransformer pipeline:
     - OneHotEncoder for categorical features (handle_unknown='ignore')
-    - StandardScaler for numerical features
+    - MinMaxScaler(feature_range=(0, 1)) for numerical features (Paper-aligned)
     """
     preprocessor = ColumnTransformer(
         transformers=[
@@ -38,7 +38,7 @@ def create_column_transformer() -> ColumnTransformer:
             ),
             (
                 "num",
-                StandardScaler(),
+                MinMaxScaler(feature_range=(0, 1)),
                 NUMERICAL_FEATURES,
             ),
         ],
