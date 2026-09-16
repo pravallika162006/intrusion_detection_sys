@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intrusion Detection System (IDS) — Phase 3</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-r from-cyan-500 to-blue-600 p-2.5 rounded-xl shadow-lg shadow-cyan-500/20">
+                <i class="fa-solid me-0 fa-shield-halved text-xl text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-wide bg-gradient-to-r from-white via-slate-200 to-cyan-400 bg-clip-text text-transparent">
+                    Intrusion Detection System
+                </h1>
+                <p class="text-xs text-slate-400">Phase 3: Dual-Dashboard Dataset & Live Network IDS</p>
+            </div>
+        </div>
+
+        <!-- Mode Selector Navigation Tabs -->
+        <div class="flex bg-slate-950 p-1.5 rounded-xl border border-slate-800 space-x-1 mt-3 sm:mt-0">
+            <button id="tab-dataset" onclick="switchDashboard('dataset')" class="px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-cyan-600 text-white shadow-md shadow-cyan-600/30">
+                <i class="fa-solid fa-database mr-2"></i>Dataset Dashboard
+            </button>
+            <button id="tab-live" onclick="switchDashboard('live')" class="px-5 py-2 rounded-lg text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-900 transition-all duration-200">
+                <i class="fa-solid fa-network-wired mr-2"></i>Live Monitoring Dashboard
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Body Container -->
+    <main class="flex-1 p-6 max-w-7xl w-full mx-auto">
+
+        <!-- ========================================================= -->
+        <!-- DASHBOARD 1: DATASET ANALYSIS & PREDICTION -->
+        <!-- ========================================================= -->
+        <section id="dashboard-dataset" class="space-y-6">
+            
+            <!-- Controls Card -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
+                <h2 class="text-lg font-bold text-slate-200 mb-4 flex items-center">
+                    <i class="fa-solid fa-file-csv text-cyan-400 mr-2.5"></i>Dataset Source & Configuration
+                </h2>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Upload Dropzone -->
+                    <div class="lg:col-span-6 border-2 border-dashed border-slate-700 hover:border-cyan-500 rounded-xl p-5 text-center transition-all bg-slate-950/50 flex flex-col justify-center items-center">
+                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-cyan-400 mb-2"></i>
+                        <p class="text-sm text-slate-300 font-medium mb-1">Drag & Drop CSV / Parquet File</p>
+                        <p class="text-xs text-slate-500 mb-3">Supports UNSW-NB15 or custom datasets</p>
+                        <div class="flex space-x-3">
+                            <label class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-cyan-300 px-4 py-2 rounded-lg text-xs font-semibold border border-slate-700 transition">
+                                Browse Files
+                                <input type="file" id="dataset-file-input" accept=".csv,.parquet,.pq" class="hidden" onchange="handleFileUpload(event)">
+                            </label>
+                            <button onclick="loadBuiltinDataset()" class="bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 px-4 py-2 rounded-lg text-xs font-semibold border border-cyan-800/60 transition">
+                                <i class="fa-solid fa-bolt mr-1"></i>Use UNSW-NB15 Test Set
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Options & Selectors -->
+                    <div class="lg:col-span-6 space-y-4">
+                        <!-- Validation Status Box -->
+                        <div id="validation-box" class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs">
+                            <span class="text-slate-400">Dataset Status:</span>
+                            <span id="val-badge" class="ml-2 font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400">No Dataset Selected</span>
+                            <div id="val-info" class="mt-2 text-slate-400">Select built-in test set or upload file to validate schema.</div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Feature Mode</label>
+                                <select id="select-feature-mode" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-500">
+                                    <option value="19" selected>19 Selected Features (Phase 2)</option>
+                                    <option value="42">42 Original Features (Phase 1)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Trained Model</label>
+                                <select id="select-model" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-500">
+                                    <option value="xgboost_dt">XGBoost + Decision Tree (Recommended)</option>
+                                    <option value="decision_tree">Decision Tree</option>
+                                    <option value="ann">Artificial Neural Network (ANN)</option>
+                                    <option value="knn">k-Nearest Neighbors (kNN)</option>
+                                    <option value="logistic_regression">Logistic Regression</option>
+                                    <option value="svm">Support Vector Machine (SVM)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex space-x-3 pt-1">
+                            <button onclick="runPrediction('binary')" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white py-2.5 rounded-xl font-semibold text-xs transition shadow-lg shadow-cyan-600/20">
+                                <i class="fa-solid fa-play mr-1.5"></i>Run Binary Prediction
+                            </button>
+                            <button onclick="runPrediction('multiclass')" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl font-semibold text-xs transition shadow-lg shadow-indigo-600/20">
+                                <i class="fa-solid fa-layer-group mr-1.5"></i>Run Multiclass Classification
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prediction Results Summary Grid -->
+            <div id="dataset-results-container" class="hidden space-y-6">
+                
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                        <p class="text-xs text-slate-400 font-medium">Total Records Analyzed</p>
+                        <p id="stat-total" class="text-2xl font-bold text-white mt-1">0</p>
+                    </div>
+                    <div class="bg-slate-900 border border-emerald-900/40 rounded-xl p-4">
+                        <p class="text-xs text-emerald-400 font-medium">Normal Traffic Count</p>
+                        <p id="stat-normal" class="text-2xl font-bold text-emerald-400 mt-1">0</p>
+                    </div>
+                    <div class="bg-slate-900 border border-rose-900/40 rounded-xl p-4">
+                        <p class="text-xs text-rose-400 font-medium">Attack Count</p>
+                        <p id="stat-attack" class="text-2xl font-bold text-rose-400 mt-1">0</p>
+                    </div>
+                    <div class="bg-slate-900 border border-amber-900/40 rounded-xl p-4">
+                        <p class="text-xs text-amber-400 font-medium">Attack Percentage</p>
+                        <p id="stat-pct" class="text-2xl font-bold text-amber-400 mt-1">0%</p>
+                    </div>
+                </div>
+
+                <!-- Ground Truth Evaluation Metrics Card (if labels present) -->
+                <div id="eval-metrics-card" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                    <h3 class="text-base font-bold text-slate-200 mb-4 flex items-center">
+                        <i class="fa-solid fa-chart-line text-cyan-400 mr-2"></i>Ground Truth Evaluation Performance
+                    </h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-6">
+                        <div class="bg-slate-950 p-3 rounded-lg text-center border border-slate-800">
+                            <span class="text-xs text-slate-400 block">Accuracy</span>
+                            <span id="metric-acc" class="text-lg font-bold text-cyan-400">0.00%</span>
+                        </div>
+                        <div class="bg-slate-950 p-3 rounded-lg text-center border border-slate-800">
+                            <span class="text-xs text-slate-400 block">Precision</span>
+                            <span id="metric-prec" class="text-lg font-bold text-white">0.00</span>
+                        </div>
+                        <div class="bg-slate-950 p-3 rounded-lg text-center border border-slate-800">
+                            <span class="text-xs text-slate-400 block">Recall</span>
+                            <span id="metric-rec" class="text-lg font-bold text-white">0.00</span>
+                        </div>
+                        <div class="bg-slate-950 p-3 rounded-lg text-center border border-slate-800">
+                            <span class="text-xs text-slate-400 block">F1-Score</span>
+                            <span id="metric-f1" class="text-lg font-bold text-white">0.00</span>
+                        </div>
+                        <div class="bg-slate-950 p-3 rounded-lg text-center border border-slate-800">
+                            <span class="text-xs text-slate-400 block">Macro F1</span>
+                            <span id="metric-macro" class="text-lg font-bold text-white">0.00</span>
+                        </div>
+                        <div class="bg-slate-950 p-3 rounded-lg text-center border border-slate-800">
+                            <span class="text-xs text-slate-400 block">Weighted F1</span>
+                            <span id="metric-weighted" class="text-lg font-bold text-white">0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Confusion Matrix Display -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-xs font-semibold text-slate-300 mb-2">Confusion Matrix</h4>
+                            <div id="confusion-matrix-box" class="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-cyan-300"></div>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-semibold text-slate-300 mb-2">Attack Distribution</h4>
+                            <div id="attack-dist-box" class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1.5"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sample Records Table -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                    <h3 class="text-base font-bold text-slate-200 mb-3">Sample Prediction Results (First 20 Records)</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="text-slate-400 bg-slate-950 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="py-2.5 px-4">Record #</th>
+                                    <th class="py-2.5 px-4">Prediction</th>
+                                    <th class="py-2.5 px-4">Attack Category</th>
+                                    <th class="py-2.5 px-4">Confidence</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sample-table-body" class="divide-y divide-slate-800"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- DASHBOARD 2: LIVE NETWORK MONITORING -->
+        <!-- ========================================================= -->
+        <section id="dashboard-live" class="hidden space-y-6">
+            
+            <!-- Live Control Bar -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center space-x-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Network Interface</label>
+                            <select id="select-interface" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 min-w-[240px] focus:outline-none focus:border-cyan-500">
+                                <option value="default">Discovering interfaces...</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center space-x-2 pt-5">
+                            <input type="checkbox" id="check-test-mode" class="rounded bg-slate-950 border-slate-700 text-cyan-600 focus:ring-cyan-500">
+                            <label for="check-test-mode" class="text-xs font-semibold text-amber-400">
+                                Controlled TEST MODE
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <span id="live-status-badge" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-slate-500 mr-2"></span>IDLE
+                        </span>
+
+                        <button id="btn-start-live" onclick="startLiveMonitoring()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl font-semibold text-xs transition shadow-lg shadow-emerald-600/20">
+                            <i class="fa-solid fa-play mr-1.5"></i>Start Monitoring
+                        </button>
+                        <button id="btn-stop-live" onclick="stopLiveMonitoring()" class="bg-rose-600 hover:bg-rose-500 text-white px-5 py-2 rounded-xl font-semibold text-xs transition shadow-lg shadow-rose-600/20 disabled:opacity-50" disabled>
+                            <i class="fa-solid fa-stop mr-1.5"></i>Stop Monitoring
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Metrics Stat Counters -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                    <p class="text-xs text-slate-400 font-medium">Packets Captured</p>
+                    <p id="live-stat-packets" class="text-2xl font-bold text-white mt-1">0</p>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                    <p class="text-xs text-slate-400 font-medium">Active / Total Flows</p>
+                    <p id="live-stat-flows" class="text-2xl font-bold text-cyan-400 mt-1">0</p>
+                </div>
+                <div class="bg-slate-900 border border-emerald-900/40 rounded-xl p-4">
+                    <p class="text-xs text-emerald-400 font-medium">Normal Flows</p>
+                    <p id="live-stat-normal" class="text-2xl font-bold text-emerald-400 mt-1">0</p>
+                </div>
+                <div class="bg-slate-900 border border-rose-900/40 rounded-xl p-4">
+                    <p class="text-xs text-rose-400 font-medium">Attack Alerts</p>
+                    <p id="live-stat-attack" class="text-2xl font-bold text-rose-400 mt-1">0</p>
+                </div>
+            </div>
+
+            <!-- Live Flow Feed Table -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-base font-bold text-slate-200 flex items-center">
+                        <i class="fa-solid fa-satellite-dish text-cyan-400 mr-2"></i>Real-Time Traffic & Detection Feed
+                    </h3>
+                    <span class="text-xs text-slate-500" id="ws-indicator"><i class="fa-solid fa-circle-dot text-slate-600 mr-1"></i>WebSocket Disconnected</span>
+                </div>
+
+                <div class="overflow-x-auto max-h-[420px] overflow-y-auto">
+                    <table class="w-full text-xs text-left text-slate-300">
+                        <thead class="text-slate-400 bg-slate-950 uppercase text-[10px] tracking-wider sticky top-0 border-b border-slate-800">
+                            <tr>
+                                <th class="py-2.5 px-3">Timestamp</th>
+                                <th class="py-2.5 px-3">Flow Connection</th>
+                                <th class="py-2.5 px-3">Service</th>
+                                <th class="py-2.5 px-3">Prediction</th>
+                                <th class="py-2.5 px-3">Attack Category</th>
+                                <th class="py-2.5 px-3">Confidence</th>
+                                <th class="py-2.5 px-3 text-right">AI Agent</th>
+                            </tr>
+                        </thead>
+                        <tbody id="live-feed-body" class="divide-y divide-slate-800/80">
+                            <tr id="no-live-data-row">
+                                <td colspan="7" class="py-8 text-center text-slate-500 italic">
+                                    No live traffic detected yet. Click "Start Monitoring" or enable "Controlled TEST MODE".
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- AI Security Agent Recommendation Drawer/Modal -->
+    <div id="ai-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex justify-center items-center p-4">
+        <div class="bg-slate-900 border border-cyan-500/40 rounded-2xl max-w-2xl w-full p-6 shadow-2xl shadow-cyan-500/10 space-y-4">
+            <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <div class="bg-cyan-500/20 text-cyan-400 p-2 rounded-lg">
+                        <i class="fa-solid fa-robot text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">AI Security Agent Recommendation</h3>
+                        <p class="text-xs text-slate-400" id="ai-flow-id">Flow ID: --</p>
+                    </div>
+                </div>
+                <button onclick="closeAiModal()" class="text-slate-400 hover:text-white text-lg px-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <span class="text-slate-400 font-semibold block mb-1">Threat Summary</span>
+                    <p id="ai-summary" class="bg-slate-950 p-3 rounded-lg text-slate-200 font-medium border border-slate-800"></p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <span class="text-slate-400 font-semibold block mb-1">Severity Rating</span>
+                        <span id="ai-severity" class="inline-block px-3 py-1 rounded font-bold text-xs">--</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 font-semibold block mb-1">Advisory Status</span>
+                        <span class="inline-block px-3 py-1 rounded font-bold text-xs bg-slate-800 text-cyan-400">Recommendation Only (Non-Destructive)</span>
+                    </div>
+                </div>
+
+                <div>
+                    <span class="text-slate-400 font-semibold block mb-1">Technical Explanation</span>
+                    <p id="ai-explanation" class="bg-slate-950 p-3 rounded-lg text-slate-300 border border-slate-800 leading-relaxed"></p>
+                </div>
+
+                <div>
+                    <span class="text-slate-400 font-semibold block mb-1">Recommended Actions</span>
+                    <ul id="ai-actions" class="list-disc list-inside bg-slate-950 p-3 rounded-lg text-slate-300 space-y-1 border border-slate-800"></ul>
+                </div>
+
+                <div>
+                    <span class="text-slate-400 font-semibold block mb-1">Investigation Guidance</span>
+                    <ul id="ai-guidance" class="list-disc list-inside bg-slate-950 p-3 rounded-lg text-slate-300 space-y-1 border border-slate-800"></ul>
+                </div>
+            </div>
+
+            <div class="pt-2 text-right">
+                <button onclick="closeAiModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-5 py-2 rounded-xl text-xs font-semibold">
+                    Close Guidance
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

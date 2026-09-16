@@ -39,6 +39,10 @@ preprocessing_artifacts/*.joblib
 logs/
 tmp/
 scratch/
+uploads/
+query
+
+
 
 # Dataset Directory (Teammate downloads official UNSW-NB15 dataset separately)
 data/

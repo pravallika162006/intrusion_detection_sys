@@ -30,20 +30,32 @@ TEST_CSV_PATH = DATASET_DIR / "UNSW_NB15_testing-set.csv"
 MODELS_DIR = BASE_DIR / "models"
 BINARY_MODELS_DIR = MODELS_DIR / "binary"
 MULTICLASS_MODELS_DIR = MODELS_DIR / "multiclass"
+PHASE2_MODELS_DIR = MODELS_DIR / "phase2"
+PHASE2_BINARY_MODELS_DIR = PHASE2_MODELS_DIR / "binary"
+PHASE2_MULTICLASS_MODELS_DIR = PHASE2_MODELS_DIR / "multiclass"
+
 PREPROCESSING_DIR = BASE_DIR / "preprocessing_artifacts"
+PREPROCESSING_PHASE2_DIR = PREPROCESSING_DIR / "phase2"
+
 RESULTS_DIR = BASE_DIR / "results"
 REPORTS_DIR = RESULTS_DIR / "classification_reports"
 CONFUSION_DIR = RESULTS_DIR / "confusion_matrices"
+UPLOADS_DIR = BASE_DIR / "uploads"
 
 # Create directories if they do not exist
 for directory in [
     MODELS_DIR,
     BINARY_MODELS_DIR,
     MULTICLASS_MODELS_DIR,
+    PHASE2_MODELS_DIR,
+    PHASE2_BINARY_MODELS_DIR,
+    PHASE2_MULTICLASS_MODELS_DIR,
     PREPROCESSING_DIR,
+    PREPROCESSING_PHASE2_DIR,
     RESULTS_DIR,
     REPORTS_DIR,
     CONFUSION_DIR,
+    UPLOADS_DIR,
 ]:
     directory.mkdir(parents=True, exist_ok=True)
 
@@ -106,5 +118,29 @@ NUMERICAL_FEATURES = [
 # Combined 42 Input Features
 ALL_INPUT_FEATURES = CATEGORICAL_FEATURES + NUMERICAL_FEATURES
 
+# Audited 19 Selected Features (Phase 2)
+SELECTED_19_FEATURES = [
+    "sttl",
+    "proto",
+    "ct_srv_dst",
+    "sbytes",
+    "service",
+    "smean",
+    "ct_dst_sport_ltm",
+    "state",
+    "dpkts",
+    "sloss",
+    "synack",
+    "ct_dst_src_ltm",
+    "dmean",
+    "trans_depth",
+    "ct_state_ttl",
+    "dbytes",
+    "ct_srv_src",
+    "dloss",
+    "tcprtt",
+]
+
 # Reproducibility
 RANDOM_SEED = 42
+
