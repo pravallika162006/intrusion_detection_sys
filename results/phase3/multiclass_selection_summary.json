@@ -1,0 +1,24 @@
+{
+  "Task": "multiclass",
+  "Selected_Model": "Ensemble (Soft Voting: RF + XGBoost)",
+  "Is_Enhanced_Adopted": true,
+  "Rationale": "Validation performance improved over the baseline (Phase 2 Best (ANN)) by +2.08% Accuracy and +14.95% F1. Selected 'Ensemble (Soft Voting: RF + XGBoost)' as the Phase 3 Enhanced Model.",
+  "Validation_Metrics": {
+    "Accuracy": 82.62,
+    "F1": 55.29,
+    "Baseline_Val_Accuracy": 80.54,
+    "Baseline_Val_F1": 40.34,
+    "Accuracy_Delta": 2.08,
+    "F1_Delta": 14.95
+  },
+  "Final_Test_Metrics": {
+    "Accuracy": 77.17,
+    "Precision": 63.03,
+    "Recall": 50.63,
+    "F1": 48.12,
+    "Macro_F1": 48.12,
+    "Weighted_F1": 77.53,
+    "Prediction_Time_s": 0.9957
+  },
+  "Model_Artifact_Path": "C:\\projects\\IDS\\models\\phase3\\multiclass\\enhanced_multiclass_model.joblib"
+}

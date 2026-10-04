@@ -24,4 +24,5 @@ python-multipart>=0.0.6
 
 # Live Packet Capture & Networking (Phase 3)
 scapy>=2.5.0
-
+# Reporting (Phase 4)
+reportlab>=4.0.0

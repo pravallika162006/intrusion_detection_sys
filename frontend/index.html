@@ -3,53 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Intrusion Detection System (IDS) — Phase 3</title>
+    <title>Intrusion Detection System — Academic Suite & Real-Time IDS</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN for Visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
     <!-- Top Navigation Header -->
-    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center sticky top-0 z-50">
+    <header class="bg-slate-900/90 border-b border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center sticky top-0 z-50 shadow-xl backdrop-blur-md">
         <div class="flex items-center space-x-3">
             <div class="bg-gradient-to-r from-cyan-500 to-blue-600 p-2.5 rounded-xl shadow-lg shadow-cyan-500/20">
-                <i class="fa-solid me-0 fa-shield-halved text-xl text-white"></i>
+                <i class="fa-solid fa-shield-halved text-xl text-white"></i>
             </div>
             <div>
                 <h1 class="text-xl font-bold tracking-wide bg-gradient-to-r from-white via-slate-200 to-cyan-400 bg-clip-text text-transparent">
                     Intrusion Detection System
                 </h1>
-                <p class="text-xs text-slate-400">Phase 3: Dual-Dashboard Dataset & Live Network IDS</p>
+                <p class="text-xs text-slate-400">Kasongo & Sun (2020) Reproduction & Project Enhancement Suite</p>
             </div>
         </div>
 
-        <!-- Mode Selector Navigation Tabs -->
+        <!-- 4 Navigation Tabs -->
         <div class="flex bg-slate-950 p-1.5 rounded-xl border border-slate-800 space-x-1 mt-3 sm:mt-0">
-            <button id="tab-dataset" onclick="switchDashboard('dataset')" class="px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-cyan-600 text-white shadow-md shadow-cyan-600/30">
-                <i class="fa-solid fa-database mr-2"></i>Dataset Dashboard
+            <button id="tab-dataset" onclick="switchDashboard('dataset')" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 tab-inactive">
+                <i class="fa-solid fa-database mr-2"></i>Dataset Analysis
             </button>
-            <button id="tab-live" onclick="switchDashboard('live')" class="px-5 py-2 rounded-lg text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-900 transition-all duration-200">
-                <i class="fa-solid fa-network-wired mr-2"></i>Live Monitoring Dashboard
+            <button id="tab-performances" onclick="switchDashboard('performances')" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 tab-active">
+                <i class="fa-solid fa-chart-line mr-2"></i>Performances
+            </button>
+            <button id="tab-live" onclick="switchDashboard('live')" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 tab-inactive">
+                <i class="fa-solid fa-network-wired mr-2"></i>Live Monitoring
+            </button>
+            <button id="tab-ai" onclick="switchDashboard('ai')" class="px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 tab-inactive">
+                <i class="fa-solid fa-robot mr-2"></i>AI Security Advice
             </button>
         </div>
     </header>
 
-    <!-- Main Body Container -->
+    <!-- System Status Bar -->
+    <div class="bg-slate-900/60 border-b border-slate-800/80 px-6 py-2 text-xs flex flex-wrap justify-between items-center gap-2">
+        <div class="flex flex-wrap items-center space-x-4">
+            <span class="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">System Status:</span>
+            
+            <span id="status-backend" class="flex items-center text-emerald-400 font-medium">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot mr-1.5"></span>Backend API: Online
+            </span>
+            <span id="status-ws" class="flex items-center text-slate-400 font-medium">
+                <span class="w-2 h-2 rounded-full bg-slate-500 mr-1.5"></span>WebSocket: Disconnected
+            </span>
+            <span id="status-adapter" class="flex items-center text-cyan-400 font-medium">
+                <i class="fa-solid fa-ethernet mr-1.5"></i>Adapter: Wi-Fi / Scapy
+            </span>
+            <span id="status-models" class="flex items-center text-indigo-400 font-medium">
+                <i class="fa-solid fa-brain mr-1.5"></i>ML Models: Ready (Phase 1, 2, 3)
+            </span>
+            <span id="status-ai" class="flex items-center text-cyan-300 font-medium">
+                <i class="fa-solid fa-robot mr-1.5"></i>AI Agent: Active
+            </span>
+        </div>
+
+        <div id="test-mode-badge-bar" class="hidden">
+            <span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-950 text-amber-300 border border-amber-800 flex items-center shadow-inner">
+                <span class="w-2 h-2 rounded-full bg-amber-400 pulse-dot mr-1.5"></span>TEST MODE — Synthetic Traffic Active
+            </span>
+        </div>
+    </div>
+
+    <!-- Main Container -->
     <main class="flex-1 p-6 max-w-7xl w-full mx-auto">
 
         <!-- ========================================================= -->
         <!-- DASHBOARD 1: DATASET ANALYSIS & PREDICTION -->
         <!-- ========================================================= -->
-        <section id="dashboard-dataset" class="space-y-6">
-            
+        <section id="dashboard-dataset" class="space-y-6 hidden">
             <!-- Controls Card -->
             <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
-                <h2 class="text-lg font-bold text-slate-200 mb-4 flex items-center">
-                    <i class="fa-solid fa-file-csv text-cyan-400 mr-2.5"></i>Dataset Source & Configuration
-                </h2>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-slate-200 flex items-center">
+                        <i class="fa-solid fa-file-csv text-cyan-400 mr-2.5"></i>Dataset Source & Configuration
+                    </h2>
+                    <button id="btn-dataset-pdf" onclick="downloadDatasetPdfReport()" class="hidden bg-slate-800 hover:bg-slate-700 text-cyan-300 px-4 py-2 rounded-xl text-xs font-semibold border border-slate-700 transition flex items-center">
+                        <i class="fa-solid fa-file-pdf text-rose-400 mr-2 text-sm"></i>Download Dataset Report (PDF)
+                    </button>
+                </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     <!-- Upload Dropzone -->
@@ -70,7 +111,6 @@
 
                     <!-- Options & Selectors -->
                     <div class="lg:col-span-6 space-y-4">
-                        <!-- Validation Status Box -->
                         <div id="validation-box" class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs">
                             <span class="text-slate-400">Dataset Status:</span>
                             <span id="val-badge" class="ml-2 font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400">No Dataset Selected</span>
@@ -81,275 +121,1058 @@
                             <div>
                                 <label class="block text-xs font-semibold text-slate-400 mb-1.5">Feature Mode</label>
                                 <select id="select-feature-mode" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-500">
-                                    <option value="19" selected>19 Selected Features (Phase 2)</option>
+                                    <option value="19" selected>19 Selected Features (Paper Table 3)</option>
                                     <option value="42">42 Original Features (Phase 1)</option>
                                 </select>
                             </div>
-
                             <div>
-                                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Trained Model</label>
-                                <select id="select-model" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-500">
-                                    <option value="xgboost_dt">XGBoost + Decision Tree (Recommended)</option>
-                                    <option value="decision_tree">Decision Tree</option>
-                                    <option value="ann">Artificial Neural Network (ANN)</option>
-                                    <option value="knn">k-Nearest Neighbors (kNN)</option>
-                                    <option value="logistic_regression">Logistic Regression</option>
-                                    <option value="svm">Support Vector Machine (SVM)</option>
+                                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Prediction Task</label>
+                                <select id="select-prediction-task" onchange="updateModelDropdown()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-500">
+                                    <option value="binary" selected>Binary (Normal vs Attack)</option>
+                                    <option value="multiclass">Multiclass (10 Classes)</option>
                                 </select>
                             </div>
                         </div>
 
-                        <div class="flex space-x-3 pt-1">
-                            <button onclick="runPrediction('binary')" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white py-2.5 rounded-xl font-semibold text-xs transition shadow-lg shadow-cyan-600/20">
-                                <i class="fa-solid fa-play mr-1.5"></i>Run Binary Prediction
-                            </button>
-                            <button onclick="runPrediction('multiclass')" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl font-semibold text-xs transition shadow-lg shadow-indigo-600/20">
-                                <i class="fa-solid fa-layer-group mr-1.5"></i>Run Multiclass Classification
-                            </button>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Model Selection</label>
+                                <select id="select-model" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-500">
+                                    <option value="decision_tree" selected>Decision Tree</option>
+                                    <option value="ann">ANN (Neural Network)</option>
+                                    <option value="knn">k-Nearest Neighbors</option>
+                                    <option value="logistic_regression">Logistic Regression</option>
+                                    <option value="enhanced">Phase 3 Enhanced Model (HistGB)</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button id="btn-run-prediction" onclick="runDatasetPrediction()" disabled class="w-full bg-cyan-600 disabled:bg-slate-800 disabled:text-slate-500 hover:bg-cyan-500 text-white py-2 rounded-lg text-xs font-bold transition shadow-lg shadow-cyan-600/20">
+                                    <i class="fa-solid fa-play mr-1.5"></i>Run Inference & Eval
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Prediction Results Summary Grid -->
-            <div id="dataset-results-container" class="hidden space-y-6">
-                
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <!-- Dataset Results Container -->
+            <div id="dataset-results-container" class="space-y-6 hidden">
+                <!-- Metrics Overview Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                        <p class="text-xs text-slate-400 font-medium">Total Records Analyzed</p>
-                        <p id="stat-total" class="text-2xl font-bold text-white mt-1">0</p>
+                        <span class="text-xs text-slate-400 block mb-1">Total Records Evaluated</span>
+                        <span id="metric-total-rows" class="text-2xl font-bold text-white">0</span>
                     </div>
-                    <div class="bg-slate-900 border border-emerald-900/40 rounded-xl p-4">
-                        <p class="text-xs text-emerald-400 font-medium">Normal Traffic Count</p>
-                        <p id="stat-normal" class="text-2xl font-bold text-emerald-400 mt-1">0</p>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                        <span class="text-xs text-emerald-400 block mb-1">Normal Traffic Predicted</span>
+                        <span id="metric-normal-count" class="text-2xl font-bold text-emerald-400">0</span>
                     </div>
-                    <div class="bg-slate-900 border border-rose-900/40 rounded-xl p-4">
-                        <p class="text-xs text-rose-400 font-medium">Attack Count</p>
-                        <p id="stat-attack" class="text-2xl font-bold text-rose-400 mt-1">0</p>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                        <span class="text-xs text-rose-400 block mb-1">Attacks Flagged</span>
+                        <span id="metric-attack-count" class="text-2xl font-bold text-rose-400">0</span>
                     </div>
-                    <div class="bg-slate-900 border border-amber-900/40 rounded-xl p-4">
-                        <p class="text-xs text-amber-400 font-medium">Attack Percentage</p>
-                        <p id="stat-pct" class="text-2xl font-bold text-amber-400 mt-1">0%</p>
-                    </div>
-                </div>
-
-                <!-- Ground Truth Evaluation Metrics Card (if labels present) -->
-                <div id="eval-metrics-card" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                    <h3 class="text-base font-bold text-slate-200 mb-4 flex items-center">
-                        <i class="fa-solid fa-chart-line text-cyan-400 mr-2"></i>Ground Truth Evaluation Performance
-                    </h3>
-                    <div class="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-6">
-                        <div class="bg-slate-950 p-3 rounded-lg text-center border border-slate-800">
-                            <span class="text-xs text-slate-400 block">Accuracy</span>
-                            <span id="metric-acc" class="text-lg font-bold text-cyan-400">0.00%</span>
-                        </div>
-                        <div class="bg-slate-950 p-3 rounded-lg text-center border border-slate-800">
-                            <span class="text-xs text-slate-400 block">Precision</span>
-                            <span id="metric-prec" class="text-lg font-bold text-white">0.00</span>
-                        </div>
-                        <div class="bg-slate-950 p-3 rounded-lg text-center border border-slate-800">
-                            <span class="text-xs text-slate-400 block">Recall</span>
-                            <span id="metric-rec" class="text-lg font-bold text-white">0.00</span>
-                        </div>
-                        <div class="bg-slate-950 p-3 rounded-lg text-center border border-slate-800">
-                            <span class="text-xs text-slate-400 block">F1-Score</span>
-                            <span id="metric-f1" class="text-lg font-bold text-white">0.00</span>
-                        </div>
-                        <div class="bg-slate-950 p-3 rounded-lg text-center border border-slate-800">
-                            <span class="text-xs text-slate-400 block">Macro F1</span>
-                            <span id="metric-macro" class="text-lg font-bold text-white">0.00</span>
-                        </div>
-                        <div class="bg-slate-950 p-3 rounded-lg text-center border border-slate-800">
-                            <span class="text-xs text-slate-400 block">Weighted F1</span>
-                            <span id="metric-weighted" class="text-lg font-bold text-white">0.00</span>
-                        </div>
-                    </div>
-
-                    <!-- Confusion Matrix Display -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <h4 class="text-xs font-semibold text-slate-300 mb-2">Confusion Matrix</h4>
-                            <div id="confusion-matrix-box" class="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-cyan-300"></div>
-                        </div>
-                        <div>
-                            <h4 class="text-xs font-semibold text-slate-300 mb-2">Attack Distribution</h4>
-                            <div id="attack-dist-box" class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1.5"></div>
-                        </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                        <span class="text-xs text-cyan-400 block mb-1">Test Accuracy</span>
+                        <span id="metric-eval-acc" class="text-2xl font-bold text-cyan-400">N/A</span>
                     </div>
                 </div>
 
-                <!-- Sample Records Table -->
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                    <h3 class="text-base font-bold text-slate-200 mb-3">Sample Prediction Results (First 20 Records)</h3>
+                <!-- Charts & Prediction Samples -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center">
+                            <i class="fa-solid fa-chart-pie text-cyan-400 mr-2"></i>Prediction Distribution
+                        </h3>
+                        <div class="h-64 flex justify-center items-center">
+                            <canvas id="chart-dataset-pie"></canvas>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center">
+                            <i class="fa-solid fa-list-check text-cyan-400 mr-2"></i>Inference Samples (Top 10)
+                        </h3>
+                        <div class="overflow-x-auto max-h-64">
+                            <table class="w-full text-left text-xs performance-table" id="table-dataset-samples">
+                                <thead>
+                                    <tr>
+                                        <th>Row</th>
+                                        <th>Prediction</th>
+                                        <th>Attack Category</th>
+                                        <th>Confidence</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================================= -->
+        <!-- DASHBOARD 2: DEDICATED ACADEMIC PERFORMANCES -->
+        <!-- ========================================================= -->
+        <section id="dashboard-performances" class="space-y-8">
+            
+            <!-- Academic Header & Methodology Flow -->
+            <div class="glass-card rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+                <div class="absolute -right-16 -top-16 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="flex flex-wrap justify-between items-start gap-4 mb-6">
+                    <div>
+                        <div class="flex items-center space-x-2 mb-2">
+                            <span class="badge-tag bg-cyan-950 text-cyan-300 border border-cyan-800">Academic Demonstration</span>
+                            <span class="badge-tag bg-indigo-950 text-indigo-300 border border-indigo-800">UNSW-NB15 Benchmark</span>
+                            <span class="badge-tag bg-emerald-950 text-emerald-300 border border-emerald-800">Strict Leakage-Free</span>
+                        </div>
+                        <h2 class="text-2xl font-bold tracking-tight text-white mb-1">
+                            Performance Analysis of Intrusion Detection Systems
+                        </h2>
+                        <p class="text-xs text-slate-400">
+                            Sydney M. Kasongo & Yanxia Sun (Journal of Big Data, 2020) Reproduction & Phase 3 Enhancement
+                        </p>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <button onclick="downloadPerformancePdfReport()" class="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-lg shadow-cyan-600/20 flex items-center">
+                            <i class="fa-solid fa-file-pdf mr-2 text-rose-300"></i>Download Academic Report (PDF)
+                        </button>
+                        <button onclick="loadPerformancesData()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-700 transition flex items-center">
+                            <i class="fa-solid fa-arrows-rotate mr-1.5 text-cyan-400"></i>Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3-Phase Workflow Diagram Banner -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-800/80">
+                    <div class="bg-slate-950/70 p-4 rounded-xl border border-slate-800 flex items-start space-x-3">
+                        <div class="bg-cyan-500/20 text-cyan-400 p-2.5 rounded-lg text-lg font-bold">1</div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white uppercase tracking-wider">Phase 1: Baseline</h4>
+                            <p class="text-[11px] text-slate-400 mt-0.5">All 42 UNSW-NB15 features across 5 baseline models on 75/25 split.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-950/70 p-4 rounded-xl border border-slate-800 flex items-start space-x-3">
+                        <div class="bg-emerald-500/20 text-emerald-400 p-2.5 rounded-lg text-lg font-bold">2</div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white uppercase tracking-wider">Phase 2: XGBoost Selection</h4>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Reduced to exact Paper Table 3 (19 features) with 54.8% feature reduction.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-950/70 p-4 rounded-xl border border-indigo-900/60 flex items-start space-x-3 bg-gradient-to-br from-indigo-950/30 to-slate-950/70">
+                        <div class="bg-indigo-500/20 text-indigo-400 p-2.5 rounded-lg text-lg font-bold">3</div>
+                        <div>
+                            <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wider">Phase 3: Enhancement</h4>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Alternative ML & Voting/Stacking Ensembles strictly validated before freezing.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Metric Stat Badges: 4 Dedicated Reproduction Category Cards (Phase U) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Card 1: 42-Feature Binary Best -->
+                <div class="glass-card rounded-xl p-4 border border-slate-800">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] text-cyan-400 font-semibold uppercase tracking-wider">42-Feat Binary Best</span>
+                        <span id="stat-p1-bin-model" class="text-[11px] text-slate-300 font-bold bg-slate-800/80 px-2 py-0.5 rounded">Decision Tree</span>
+                    </div>
+                    <div class="flex items-baseline space-x-2 mt-2">
+                        <span id="stat-p1-bin-acc" class="text-2xl font-bold text-white">87.52%</span>
+                        <span id="stat-p1-bin-diff" class="text-xs font-semibold text-rose-400">-0.61%</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 mt-1 flex justify-between">
+                        <span>Paper: <b id="stat-p1-bin-paper" class="text-slate-300">88.13%</b></span>
+                        <span class="text-slate-500">Reproduced Closely</span>
+                    </div>
+                </div>
+
+                <!-- Card 2: 42-Feature Multiclass Best -->
+                <div class="glass-card rounded-xl p-4 border border-slate-800">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] text-blue-400 font-semibold uppercase tracking-wider">42-Feat Multiclass Best</span>
+                        <span id="stat-p1-multi-model" class="text-[11px] text-slate-300 font-bold bg-slate-800/80 px-2 py-0.5 rounded">ANN</span>
+                    </div>
+                    <div class="flex items-baseline space-x-2 mt-2">
+                        <span id="stat-p1-multi-acc" class="text-2xl font-bold text-white">73.47%</span>
+                        <span id="stat-p1-multi-diff" class="text-xs font-semibold text-rose-400">-2.15%</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 mt-1 flex justify-between">
+                        <span>Paper: <b id="stat-p1-multi-paper" class="text-slate-300">75.62%</b></span>
+                        <span class="text-slate-500">Verified</span>
+                    </div>
+                </div>
+
+                <!-- Card 3: 19-Feature Binary Best -->
+                <div class="glass-card rounded-xl p-4 border border-emerald-800/80 bg-gradient-to-br from-emerald-950/20 to-slate-900">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] text-emerald-400 font-semibold uppercase tracking-wider">19-Feat Binary Best</span>
+                        <span id="stat-p2-bin-model" class="text-[11px] text-emerald-300 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/60">Decision Tree</span>
+                    </div>
+                    <div class="flex items-baseline space-x-2 mt-2">
+                        <span id="stat-p2-bin-acc" class="text-2xl font-bold text-emerald-300">89.17%</span>
+                        <span id="stat-p2-bin-diff" class="text-xs font-semibold text-rose-400">-1.68%</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 mt-1 flex justify-between">
+                        <span>Paper: <b id="stat-p2-bin-paper" class="text-slate-300">90.85%</b></span>
+                        <span class="text-emerald-400">Reproduced Closely</span>
+                    </div>
+                </div>
+
+                <!-- Card 4: 19-Feature Multiclass Best (Actual Measured Winner) -->
+                <div class="glass-card rounded-xl p-4 border border-indigo-800/80 bg-gradient-to-br from-indigo-950/20 to-slate-900">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] text-indigo-300 font-semibold uppercase tracking-wider">19-Feat Multiclass Best</span>
+                        <span id="stat-p2-multi-model" class="text-[11px] text-indigo-300 font-bold bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-800/60">kNN</span>
+                    </div>
+                    <div class="flex items-baseline space-x-2 mt-2">
+                        <span id="stat-p2-multi-acc" class="text-2xl font-bold text-indigo-300">74.30%</span>
+                        <span id="stat-p2-multi-diff" class="text-xs font-semibold text-emerald-400">+2.00%</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 mt-1 flex justify-between">
+                        <span>Paper: <b id="stat-p2-multi-paper" class="text-slate-300">72.30%</b></span>
+                        <span class="text-slate-400">ANN Val: 79.3%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION A: REFERENCE PAPER VS OUR RESULTS COMPARISON -->
+            <div class="glass-card rounded-2xl p-6 border border-slate-800">
+                <div class="flex justify-between items-center mb-3">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center">
+                            <i class="fa-solid fa-scale-balanced text-cyan-400 mr-2"></i>Reference Paper vs Our Implementation
+                        </h3>
+                        <p class="text-xs text-slate-400">Side-by-side reproducibility comparison on the official UNSW-NB15 Test Set</p>
+                    </div>
+                    <span class="badge-tag bg-slate-800 text-slate-300 border border-slate-700">Reproducibility Benchmark</span>
+                </div>
+
+                <div class="p-3 mb-4 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-400 flex items-start space-x-2.5">
+                    <i class="fa-solid fa-circle-info text-cyan-400 mt-0.5"></i>
+                    <span><b>Academic Reproducibility Note:</b> Results may differ from the reference paper because of implementation details, preprocessing normalization (MinMaxScaler), hardware architecture, stochastic random seeds, and specific hyperparameter tuning. Our results reflect verified local measurements.</span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400 mr-2"></span>Phase 1: 42 Features Comparison
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full performance-table text-left" id="table-comp-p1">
+                                <thead>
+                                    <tr>
+                                        <th>Model</th>
+                                        <th>Paper Test AC</th>
+                                        <th>Our Test AC</th>
+                                        <th>Difference</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2"></span>Phase 2: 19 Features Comparison
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full performance-table text-left" id="table-comp-p2">
+                                <thead>
+                                    <tr>
+                                        <th>Model</th>
+                                        <th>Paper Test AC</th>
+                                        <th>Our Test AC</th>
+                                        <th>Difference</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION B: PHASE 1: FULL 42-FEATURE REPRODUCTION -->
+            <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-5">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center">
+                            <i class="fa-solid fa-layer-group text-cyan-400 mr-2"></i>Phase 1 — Full 42-Feature UNSW-NB15 ML Experiments
+                        </h3>
+                        <p class="text-xs text-slate-400">Baseline models trained on 75% TRAIN-1 (131,506 rows) and evaluated on VAL (43,835) & TEST (82,332)</p>
+                    </div>
+                    <span class="badge-tag bg-cyan-950 text-cyan-300 border border-cyan-800">42 Input Features</span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Binary Classification Table -->
+                    <div class="lg:col-span-7 space-y-4">
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">A. Binary Classification Results (Normal vs Attack)</h4>
+                            <div class="overflow-x-auto">
+                                <table class="w-full performance-table text-left" id="table-p1-binary">
+                                    <thead>
+                                        <tr>
+                                            <th>Model</th>
+                                            <th>Tr. AC (%)</th>
+                                            <th>Val. AC (%)</th>
+                                            <th>Test AC (%)</th>
+                                            <th>Precision (%)</th>
+                                            <th>Recall (%)</th>
+                                            <th>F1 (%)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">B. Multiclass Classification Results (10 Classes)</h4>
+                            <div class="overflow-x-auto">
+                                <table class="w-full performance-table text-left" id="table-p1-multiclass">
+                                    <thead>
+                                        <tr>
+                                            <th>Model</th>
+                                            <th>Tr. AC (%)</th>
+                                            <th>Val. AC (%)</th>
+                                            <th>Test AC (%)</th>
+                                            <th>Precision (%)</th>
+                                            <th>Recall (%)</th>
+                                            <th>F1 (%)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chart -->
+                    <div class="lg:col-span-5 bg-slate-950/60 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                        <h4 class="text-xs font-bold text-slate-300 mb-2 flex items-center">
+                            <i class="fa-solid fa-chart-column text-cyan-400 mr-2"></i>Phase 1 Accuracy Benchmark
+                        </h4>
+                        <div class="h-64 flex justify-center items-center">
+                            <canvas id="chart-p1-accuracy"></canvas>
+                        </div>
+                        <p class="text-[10px] text-slate-500 text-center mt-2">Comparison of Test Accuracy across DT, ANN, kNN, LR, and SVM</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION C: PHASE 2: XGBOOST FEATURE SELECTION & 19-FEATURE REPRODUCTION -->
+            <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-6">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center">
+                            <i class="fa-solid fa-filter text-emerald-400 mr-2"></i>Phase 2 — XGBoost Feature Selection & 19-Feature Reproduction
+                        </h3>
+                        <p class="text-xs text-slate-400">Kasongo & Sun (2020) Table 3 exact 19 features with repeated ML experiments and 42 vs 19 comparison</p>
+                    </div>
+                    <span class="badge-tag bg-emerald-950 text-emerald-300 border border-emerald-800">19 Input Features</span>
+                </div>
+
+                <!-- Feature Importance Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div class="lg:col-span-6 bg-slate-950/60 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                        <h4 class="text-xs font-bold text-slate-300 mb-2 flex items-center">
+                            <i class="fa-solid fa-chart-bar text-emerald-400 mr-2"></i>Paper Table 3 Feature Importance Ranking
+                        </h4>
+                        <div class="h-80 flex justify-center items-center">
+                            <canvas id="chart-feature-importance"></canvas>
+                        </div>
+                        <p class="text-[10px] text-slate-500 text-center mt-2">XGBoost Feature Importance score: sttl (0.803) through rate (0.0005)</p>
+                    </div>
+
+                    <div class="lg:col-span-6 space-y-3">
+                        <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                            <span>Selected 19 Features (Paper Table 3)</span>
+                            <span class="text-[10px] font-normal text-emerald-400">16 Numerical | 3 Categorical</span>
+                        </h4>
+                        <div class="overflow-x-auto max-h-80 border border-slate-800 rounded-xl">
+                            <table class="w-full performance-table text-left" id="table-feature-ranking">
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>Feature</th>
+                                        <th>Type</th>
+                                        <th class="text-cyan-400">Paper Table 3 (Ref)</th>
+                                        <th class="text-emerald-400">Our XGBoost Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 2 Model Results Tables -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">A. Binary Classification (19 Features)</h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full performance-table text-left" id="table-p2-binary">
+                                <thead>
+                                    <tr>
+                                        <th>Model</th>
+                                        <th>Tr. AC (%)</th>
+                                        <th>Val. AC (%)</th>
+                                        <th>Test AC (%)</th>
+                                        <th>Precision (%)</th>
+                                        <th>Recall (%)</th>
+                                        <th>F1 (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider">B. Multiclass Classification (19 Features)</h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full performance-table text-left" id="table-p2-multiclass">
+                                <thead>
+                                    <tr>
+                                        <th>Model</th>
+                                        <th>Tr. AC (%)</th>
+                                        <th>Val. AC (%)</th>
+                                        <th>Test AC (%)</th>
+                                        <th>Precision (%)</th>
+                                        <th>Recall (%)</th>
+                                        <th>F1 (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 42 vs 19 Delta Comparison Table -->
+                <div class="pt-4 border-t border-slate-800/80">
+                    <h4 class="text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider flex items-center">
+                        <i class="fa-solid fa-code-compare text-emerald-400 mr-2"></i>42 vs 19 Feature Set Performance Delta
+                    </h4>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left text-slate-300">
-                            <thead class="text-slate-400 bg-slate-950 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                        <table class="w-full performance-table text-left" id="table-42-vs-19">
+                            <thead>
                                 <tr>
-                                    <th class="py-2.5 px-4">Record #</th>
-                                    <th class="py-2.5 px-4">Prediction</th>
-                                    <th class="py-2.5 px-4">Attack Category</th>
-                                    <th class="py-2.5 px-4">Confidence</th>
+                                    <th>Task</th>
+                                    <th>Model</th>
+                                    <th>42 Test AC (%)</th>
+                                    <th>19 Test AC (%)</th>
+                                    <th>Accuracy Delta</th>
+                                    <th>42 F1 (%)</th>
+                                    <th>19 F1 (%)</th>
+                                    <th>F1 Delta</th>
                                 </tr>
                             </thead>
-                            <tbody id="sample-table-body" class="divide-y divide-slate-800"></tbody>
+                            <tbody></tbody>
                         </table>
                     </div>
                 </div>
+            </div>
 
+            <!-- SECTION D: PHASE 3: PROJECT ENHANCEMENT (ALTERNATIVE MODELS & ENSEMBLES) -->
+            <div class="glass-card rounded-2xl p-6 border border-indigo-900/70 space-y-6 bg-gradient-to-br from-indigo-950/15 via-slate-900/90 to-slate-950">
+                <div class="flex justify-between items-center border-b border-indigo-950 pb-3">
+                    <div>
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="badge-tag bg-indigo-950 text-indigo-300 border border-indigo-800">Our Extension</span>
+                            <span class="badge-tag bg-amber-950 text-amber-300 border border-amber-800">Validation-Based Selection</span>
+                        </div>
+                        <h3 class="text-base font-bold text-white flex items-center">
+                            <i class="fa-solid fa-wand-magic-sparkles text-indigo-400 mr-2"></i>Phase 3 — Project Enhancement: Model Combinations & Ensembles
+                        </h3>
+                        <p class="text-xs text-slate-400">Strictly separated evaluation of Random Forest, XGBoost Classifier, HistGradientBoosting, and Voting/Stacking ensembles</p>
+                    </div>
+                    <span class="badge-tag bg-indigo-950 text-indigo-300 border border-indigo-800">Phase 3</span>
+                </div>
+
+                <!-- Selection Decision Card -->
+                <div id="p3-selection-card" class="p-4 rounded-xl border border-indigo-800/80 bg-slate-950/80 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center">
+                            <i class="fa-solid fa-award mr-1.5 text-amber-400"></i>Model Selection Decision Rule
+                        </span>
+                        <span id="p3-badge-decision" class="badge-tag bg-emerald-950 text-emerald-300 border border-emerald-800">Validated</span>
+                    </div>
+                    <p id="p3-rationale-text" class="text-xs text-slate-200 leading-relaxed font-medium">
+                        Loading selection rationale...
+                    </p>
+                </div>
+
+                <!-- Candidate & Ensemble Validation Tables -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-indigo-400 mr-2"></span>Candidate Models (Validation Set)
+                        </h4>
+                        <div class="overflow-x-auto max-h-72 border border-slate-800 rounded-xl">
+                            <table class="w-full performance-table text-left" id="table-p3-candidates">
+                                <thead>
+                                    <tr>
+                                        <th>Model</th>
+                                        <th>Val. Acc (%)</th>
+                                        <th>Val. Prec (%)</th>
+                                        <th>Val. Rec (%)</th>
+                                        <th>Val. F1 (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider flex items-center">
+                            <span class="w-2 h-2 rounded-full bg-violet-400 mr-2"></span>Ensemble Combinations (Validation Set)
+                        </h4>
+                        <div class="overflow-x-auto max-h-72 border border-slate-800 rounded-xl">
+                            <table class="w-full performance-table text-left" id="table-p3-ensembles">
+                                <thead>
+                                    <tr>
+                                        <th>Ensemble</th>
+                                        <th>Val. Acc (%)</th>
+                                        <th>Val. Prec (%)</th>
+                                        <th>Val. Rec (%)</th>
+                                        <th>Val. F1 (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Final Frozen Model Test Performance -->
+                <div class="pt-4 border-t border-slate-800/80">
+                    <h4 class="text-xs font-bold text-slate-300 mb-2 uppercase tracking-wider flex items-center">
+                        <i class="fa-solid fa-snowflake text-cyan-400 mr-2"></i>Final Frozen Model Performance (Official UNSW-NB15 Test Set)
+                    </h4>
+                    <p class="text-[11px] text-slate-400 mb-3">Model was frozen based strictly on validation performance, then evaluated once on the official test set to eliminate test-set overfitting.</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full performance-table text-left" id="table-p3-final-test">
+                            <thead>
+                                <tr>
+                                    <th>Task</th>
+                                    <th>Selected Model</th>
+                                    <th>Selection Status</th>
+                                    <th>Val. AC (%)</th>
+                                    <th>Test. AC (%)</th>
+                                    <th>Precision (%)</th>
+                                    <th>Recall (%)</th>
+                                    <th>F1-Score (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION E: INTERACTIVE CONFUSION MATRIX VIEWER -->
+            <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-3 border-b border-slate-800 pb-3">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center">
+                            <i class="fa-solid fa-table-cells text-cyan-400 mr-2"></i>Interactive Confusion Matrix Deep Dive
+                        </h3>
+                        <p class="text-xs text-slate-400">Inspect verified test confusion matrices across all phases and models</p>
+                    </div>
+
+                    <!-- Filter Controls -->
+                    <div class="flex items-center space-x-3 text-xs">
+                        <select id="cm-select-phase" onchange="updateConfusionMatrixModelList()" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 font-medium text-slate-200 focus:outline-none">
+                            <option value="phase1">Phase 1 (42 Feat)</option>
+                            <option value="phase2" selected>Phase 2 (19 Feat)</option>
+                            <option value="phase3">Phase 3 (Enhanced)</option>
+                        </select>
+                        <select id="cm-select-task" onchange="updateConfusionMatrixModelList()" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 font-medium text-slate-200 focus:outline-none">
+                            <option value="binary" selected>Binary</option>
+                            <option value="multiclass">Multiclass</option>
+                        </select>
+                        <select id="cm-select-model" onchange="loadSelectedConfusionMatrix()" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 font-medium text-slate-200 focus:outline-none">
+                            <option value="dt">Decision Tree</option>
+                            <option value="ann">ANN</option>
+                            <option value="knn">kNN</option>
+                            <option value="lr">Logistic Regression</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Matrix Render Box -->
+                <div class="overflow-x-auto p-4 bg-slate-950/80 rounded-xl border border-slate-800 flex justify-center items-center min-h-[160px]" id="cm-render-box">
+                    <span class="text-xs text-slate-500">Select model parameters above to render confusion matrix.</span>
+                </div>
             </div>
 
         </section>
 
-        <!-- ========================================================= -->
-        <!-- DASHBOARD 2: LIVE NETWORK MONITORING -->
-        <!-- ========================================================= -->
-        <section id="dashboard-live" class="hidden space-y-6">
-            
-            <!-- Live Control Bar -->
-            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-                    <div class="flex items-center space-x-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-400 mb-1">Network Interface</label>
-                            <select id="select-interface" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 min-w-[240px] focus:outline-none focus:border-cyan-500">
-                                <option value="default">Discovering interfaces...</option>
-                            </select>
-                        </div>
 
-                        <div class="flex items-center space-x-2 pt-5">
-                            <input type="checkbox" id="check-test-mode" class="rounded bg-slate-950 border-slate-700 text-cyan-600 focus:ring-cyan-500">
-                            <label for="check-test-mode" class="text-xs font-semibold text-amber-400">
-                                Controlled TEST MODE
+        <!-- ========================================================= -->
+        <!-- DASHBOARD 3: LIVE NETWORK MONITORING -->
+        <!-- ========================================================= -->
+        <section id="dashboard-live" class="space-y-6 hidden">
+            <!-- Capture Controls Card -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
+                <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-200 flex items-center">
+                            <i class="fa-solid fa-satellite-dish text-cyan-400 mr-2.5"></i>Live Network Capture & Detection Engine
+                        </h2>
+                        <p class="text-xs text-slate-400">Wi-Fi / Ethernet packet capture, Scapy flow construction, and real-time inference</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button id="btn-live-pdf" onclick="downloadLivePdfReport()" class="hidden bg-slate-800 hover:bg-slate-700 text-cyan-300 px-4 py-2 rounded-xl text-xs font-semibold border border-slate-700 transition flex items-center">
+                            <i class="fa-solid fa-file-pdf text-rose-400 mr-2 text-sm"></i>Download Live Report (PDF)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                    <div class="lg:col-span-5">
+                        <label class="block text-xs font-semibold text-slate-400 mb-1.5">Network Adapter Interface</label>
+                        <select id="select-interface" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-500">
+                            <option value="Wi-Fi">Wi-Fi (Default Scapy Interface)</option>
+                            <option value="Ethernet">Ethernet</option>
+                        </select>
+                    </div>
+
+                    <div class="lg:col-span-7 flex flex-wrap gap-3 items-end">
+                        <button id="btn-start-live" onclick="startLiveMonitoring(false)" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white py-2.5 px-4 rounded-xl text-xs font-bold transition shadow-lg shadow-cyan-600/20 flex items-center justify-center">
+                            <i class="fa-solid fa-play mr-2"></i>Start Live Capture
+                        </button>
+                        <button id="btn-start-test" onclick="startLiveMonitoring(true)" class="flex-1 bg-amber-600/90 hover:bg-amber-500 text-white py-2.5 px-4 rounded-xl text-xs font-bold transition shadow-lg shadow-amber-600/20 flex items-center justify-center">
+                            <i class="fa-solid fa-flask mr-2"></i>Start TEST MODE
+                        </button>
+                        <button id="btn-stop-live" onclick="stopLiveMonitoring()" disabled class="flex-1 bg-slate-800 disabled:opacity-50 text-rose-400 border border-slate-700 hover:bg-rose-950/60 py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center">
+                            <i class="fa-solid fa-stop mr-2"></i>Stop Monitoring
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Decision Threshold Slider & Operational Point -->
+                <div class="mt-4 pt-4 border-t border-slate-800 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                    <div class="md:col-span-5">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="text-xs font-semibold text-slate-300 flex items-center">
+                                <i class="fa-solid fa-sliders text-cyan-400 mr-1.5"></i>Operating Decision Threshold:
                             </label>
+                            <span id="label-threshold-val" class="font-mono text-xs font-bold text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800">0.80</span>
+                        </div>
+                        <input type="range" id="input-threshold" min="0.50" max="0.95" step="0.05" value="0.80" oninput="onThresholdChange(this.value)" class="w-full accent-cyan-500 cursor-pointer h-2 bg-slate-950 rounded-lg">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                            <span>0.50 (Permissive)</span>
+                            <span class="text-emerald-400 font-semibold">0.80 (Optimal Calibrated)</span>
+                            <span>0.95 (Conservative)</span>
                         </div>
                     </div>
-
-                    <div class="flex items-center space-x-3">
-                        <span id="live-status-badge" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 flex items-center">
-                            <span class="w-2 h-2 rounded-full bg-slate-500 mr-2"></span>IDLE
-                        </span>
-
-                        <button id="btn-start-live" onclick="startLiveMonitoring()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl font-semibold text-xs transition shadow-lg shadow-emerald-600/20">
-                            <i class="fa-solid fa-play mr-1.5"></i>Start Monitoring
-                        </button>
-                        <button id="btn-stop-live" onclick="stopLiveMonitoring()" class="bg-rose-600 hover:bg-rose-500 text-white px-5 py-2 rounded-xl font-semibold text-xs transition shadow-lg shadow-rose-600/20 disabled:opacity-50" disabled>
-                            <i class="fa-solid fa-stop mr-1.5"></i>Stop Monitoring
-                        </button>
+                    <div class="md:col-span-7 bg-slate-950/60 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 flex items-center space-x-3">
+                        <i class="fa-solid fa-circle-info text-cyan-400 text-lg flex-shrink-0"></i>
+                        <div>
+                            <span class="text-slate-200 font-semibold">Validation Calibration Insight:</span>
+                            <span class="text-[11px] block text-slate-400">At threshold 0.80, empirical false alarms on validation data drop from 8.92% to 2.32% (&gt;74% FP reduction) while preserving 90.9% recall and 94.7% F1-score.</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Live Metrics Stat Counters -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                    <p class="text-xs text-slate-400 font-medium">Packets Captured</p>
-                    <p id="live-stat-packets" class="text-2xl font-bold text-white mt-1">0</p>
-                </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                    <p class="text-xs text-slate-400 font-medium">Active / Total Flows</p>
-                    <p id="live-stat-flows" class="text-2xl font-bold text-cyan-400 mt-1">0</p>
-                </div>
-                <div class="bg-slate-900 border border-emerald-900/40 rounded-xl p-4">
-                    <p class="text-xs text-emerald-400 font-medium">Normal Flows</p>
-                    <p id="live-stat-normal" class="text-2xl font-bold text-emerald-400 mt-1">0</p>
-                </div>
-                <div class="bg-slate-900 border border-rose-900/40 rounded-xl p-4">
-                    <p class="text-xs text-rose-400 font-medium">Attack Alerts</p>
-                    <p id="live-stat-attack" class="text-2xl font-bold text-rose-400 mt-1">0</p>
+            <!-- Operational Notice on Model Estimates & Covariate Shift -->
+            <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-300 flex items-start space-x-2.5">
+                <i class="fa-solid fa-shield-halved text-cyan-400 mt-0.5"></i>
+                <div class="space-y-0.5">
+                    <span class="font-bold text-white">Live Monitoring Reliability Notice:</span>
+                    <span class="text-slate-400">Live predictions are automated model estimates based on benchmark-trained decision boundaries. Because live operational environments exhibit distribution differences from benchmark datasets (covariate shift), predictions indicate potential anomalies rather than confirmed security incidents. OS-TTL alignment and flow state tracking are active to suppress false alarms.</span>
                 </div>
             </div>
 
-            <!-- Live Flow Feed Table -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-base font-bold text-slate-200 flex items-center">
-                        <i class="fa-solid fa-satellite-dish text-cyan-400 mr-2"></i>Real-Time Traffic & Detection Feed
-                    </h3>
-                    <span class="text-xs text-slate-500" id="ws-indicator"><i class="fa-solid fa-circle-dot text-slate-600 mr-1"></i>WebSocket Disconnected</span>
+            <!-- Live Metrics Overview -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                    <span class="text-xs text-slate-400 block mb-1">Packets Captured</span>
+                    <span id="live-stat-packets" class="text-2xl font-bold text-white">0</span>
                 </div>
-
-                <div class="overflow-x-auto max-h-[420px] overflow-y-auto">
-                    <table class="w-full text-xs text-left text-slate-300">
-                        <thead class="text-slate-400 bg-slate-950 uppercase text-[10px] tracking-wider sticky top-0 border-b border-slate-800">
-                            <tr>
-                                <th class="py-2.5 px-3">Timestamp</th>
-                                <th class="py-2.5 px-3">Flow Connection</th>
-                                <th class="py-2.5 px-3">Service</th>
-                                <th class="py-2.5 px-3">Prediction</th>
-                                <th class="py-2.5 px-3">Attack Category</th>
-                                <th class="py-2.5 px-3">Confidence</th>
-                                <th class="py-2.5 px-3 text-right">AI Agent</th>
-                            </tr>
-                        </thead>
-                        <tbody id="live-feed-body" class="divide-y divide-slate-800/80">
-                            <tr id="no-live-data-row">
-                                <td colspan="7" class="py-8 text-center text-slate-500 italic">
-                                    No live traffic detected yet. Click "Start Monitoring" or enable "Controlled TEST MODE".
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                    <span class="text-xs text-slate-400 block mb-1">Active Flows</span>
+                    <span id="live-stat-flows" class="text-2xl font-bold text-cyan-400">0</span>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                    <span class="text-xs text-emerald-400 block mb-1">Normal Flows</span>
+                    <span id="live-stat-normal" class="text-2xl font-bold text-emerald-400">0</span>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                    <span class="text-xs text-rose-400 block mb-1">Intrusion Alerts</span>
+                    <span id="live-stat-attack" class="text-2xl font-bold text-rose-400">0</span>
                 </div>
             </div>
 
+            <!-- Controlled TEST MODE Ground-Truth Evaluation Card (Appears during TEST MODE) -->
+            <div id="test-mode-eval-card" class="hidden glass-card rounded-2xl p-6 border border-amber-800/80 bg-gradient-to-br from-amber-950/20 via-slate-900 to-slate-950 space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-3 border-b border-amber-900/60 pb-3">
+                    <div>
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="badge-tag bg-amber-950 text-amber-300 border border-amber-800">Controlled Simulation</span>
+                            <span class="badge-tag bg-emerald-950 text-emerald-300 border border-emerald-800">Ground-Truth Isolated</span>
+                        </div>
+                        <h3 class="text-base font-bold text-white flex items-center">
+                            <i class="fa-solid fa-bullseye text-amber-400 mr-2"></i>TEST MODE Real-Time Ground-Truth Evaluation
+                        </h3>
+                        <p class="text-xs text-slate-400">Ground truth labels are maintained independently for precision evaluation and are strictly excluded from model feature inputs.</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs text-slate-400 block">Evaluated Flows</span>
+                        <span id="test-eval-total" class="text-lg font-bold font-mono text-amber-300">0</span>
+                    </div>
+                </div>
+
+                <!-- 2x2 Real-Time Confusion Matrix + Key Rates -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                    <!-- Matrix Table -->
+                    <div class="lg:col-span-6 overflow-x-auto">
+                        <table class="w-full text-xs text-center border-collapse border border-slate-800 rounded-xl overflow-hidden">
+                            <thead>
+                                <tr class="bg-slate-950 text-slate-400">
+                                    <th class="p-2.5 border border-slate-800 font-semibold text-left">Ground Truth \ Model Pred</th>
+                                    <th class="p-2.5 border border-slate-800 font-bold text-emerald-400">Predicted Normal</th>
+                                    <th class="p-2.5 border border-slate-800 font-bold text-rose-400">Predicted Attack</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="p-2.5 border border-slate-800 bg-slate-950/60 font-semibold text-left text-slate-300">Actual Normal (0)</td>
+                                    <td class="p-2.5 border border-slate-800 bg-emerald-950/40 font-mono font-bold text-emerald-300 text-sm" id="test-eval-tn">0</td>
+                                    <td class="p-2.5 border border-slate-800 bg-rose-950/30 font-mono font-bold text-rose-300 text-sm" id="test-eval-fp">0</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2.5 border border-slate-800 bg-slate-950/60 font-semibold text-left text-slate-300">Actual Attack (1)</td>
+                                    <td class="p-2.5 border border-slate-800 bg-amber-950/30 font-mono font-bold text-amber-300 text-sm" id="test-eval-fn">0</td>
+                                    <td class="p-2.5 border border-slate-800 bg-emerald-950/40 font-mono font-bold text-emerald-300 text-sm" id="test-eval-tp">0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Real-Time Metrics Grid -->
+                    <div class="lg:col-span-6 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Accuracy</span>
+                            <span id="test-eval-acc" class="text-lg font-bold font-mono text-cyan-400">0.0%</span>
+                        </div>
+                        <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Precision</span>
+                            <span id="test-eval-prec" class="text-lg font-bold font-mono text-emerald-400">0.0%</span>
+                        </div>
+                        <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Recall</span>
+                            <span id="test-eval-rec" class="text-lg font-bold font-mono text-indigo-400">0.0%</span>
+                        </div>
+                        <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-400 uppercase font-semibold block">F1-Score</span>
+                            <span id="test-eval-f1" class="text-lg font-bold font-mono text-purple-400">0.0%</span>
+                        </div>
+                        <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-400 uppercase font-semibold block">False Alarm Rate (FPR)</span>
+                            <span id="test-eval-fpr" class="text-lg font-bold font-mono text-emerald-400">0.0%</span>
+                        </div>
+                        <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Missed Attack Rate (FNR)</span>
+                            <span id="test-eval-fnr" class="text-lg font-bold font-mono text-amber-400">0.0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wi-Fi Live Mode Information Card (Appears during Wi-Fi live capture) -->
+            <div id="wifi-mode-info-card" class="hidden glass-card rounded-2xl p-5 border border-cyan-900/60 bg-gradient-to-br from-cyan-950/20 via-slate-900 to-slate-950 flex items-start space-x-3.5">
+                <i class="fa-solid fa-wifi text-cyan-400 text-2xl mt-1"></i>
+                <div class="space-y-1">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-bold text-white">Passive Wi-Fi Live Capture Active</span>
+                        <span class="badge-tag bg-cyan-950 text-cyan-300 border border-cyan-800">Interface: Wi-Fi</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Capturing live 802.11 / Ethernet traffic passively via Npcap. Windows host packets (<code class="text-cyan-300">TTL=128</code>) are mapped through benchmark reference alignment to prevent OS-default false positives. Predictions represent automated statistical classifications; live traffic contains no ground-truth labels.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Live Charts & Real-Time Flow Feed -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Timeline & Pie -->
+                <div class="lg:col-span-5 space-y-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center">
+                            <i class="fa-solid fa-chart-line text-cyan-400 mr-2"></i>Traffic Rate Timeline
+                        </h3>
+                        <div class="h-44 flex justify-center items-center">
+                            <canvas id="chart-live-timeline"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center">
+                            <i class="fa-solid fa-chart-pie text-cyan-400 mr-2"></i>Live Traffic Composition
+                        </h3>
+                        <div class="h-44 flex justify-center items-center">
+                            <canvas id="chart-live-pie"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Stream Feed Table -->
+                <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-sm font-bold text-slate-200 flex items-center">
+                            <i class="fa-solid fa-wave-square text-rose-400 mr-2"></i>Live Attack Alerts & Flows
+                        </h3>
+                        <span class="text-[11px] text-slate-400">Auto-streaming via WebSocket</span>
+                    </div>
+
+                    <div class="overflow-x-auto flex-1 max-h-[440px]">
+                        <table class="w-full text-left text-xs performance-table" id="table-live-flows">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Source IP</th>
+                                    <th>Destination IP</th>
+                                    <th>Proto</th>
+                                    <th>Status</th>
+                                    <th>Category</th>
+                                    <th>Confidence</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="live-flow-tbody">
+                                <tr>
+                                    <td colspan="8" class="text-center text-slate-500 py-8">
+                                        Click "Start Live Capture" or "Start TEST MODE" to begin packet inspection.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================================= -->
+        <!-- DASHBOARD 4: AI SECURITY ADVICE & THREAT INTELLIGENCE -->
+        <!-- ========================================================= -->
+        <section id="dashboard-ai" class="space-y-6 hidden">
+            <!-- Header Card -->
+            <div class="glass-card rounded-2xl p-6 border border-slate-800">
+                <div class="flex items-center space-x-3 mb-2">
+                    <div class="bg-cyan-500/20 text-cyan-400 p-2.5 rounded-xl">
+                        <i class="fa-solid fa-robot text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-white">AI Security Agent & Threat Advisor</h2>
+                        <p class="text-xs text-slate-400">Real-time incident analysis, root cause explanations, and non-destructive defensive guidance</p>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+                    The AI Security Agent operates in an advisory capacity. It inspects flagged intrusion flows, explains why the traffic pattern triggered machine learning detection, analyzes protocol behaviors, and suggests recommended remediation steps without modifying local firewall rules or executing destructive actions.
+                </p>
+            </div>
+
+            <!-- Attack Signatures Knowledge Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-rose-400">Denial of Service (DoS)</span>
+                        <span class="badge-tag bg-rose-950 text-rose-300 border border-rose-800">High</span>
+                    </div>
+                    <p class="text-xs text-slate-300 mb-2">Floods target hosts with excessive packet rates or malformed requests to deplete network and CPU resources.</p>
+                    <span class="text-[10px] text-slate-500">Key Features: high rate, sbytes, ct_srv_dst</span>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-amber-400">Reconnaissance</span>
+                        <span class="badge-tag bg-amber-950 text-amber-300 border border-amber-800">Medium</span>
+                    </div>
+                    <p class="text-xs text-slate-300 mb-2">Scans network ports and host services (e.g. Nmap SYN sweeps) to discover vulnerable attack vectors.</p>
+                    <span class="text-[10px] text-slate-500">Key Features: ct_dst_sport_ltm, synack, sttl</span>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-rose-400">Exploits</span>
+                        <span class="badge-tag bg-rose-950 text-rose-300 border border-rose-800">Critical</span>
+                    </div>
+                    <p class="text-xs text-slate-300 mb-2">Targets known software vulnerabilities (CVEs) by delivering structured malicious payloads.</p>
+                    <span class="text-[10px] text-slate-500">Key Features: sbytes, dmean, service</span>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-amber-400">Fuzzers</span>
+                        <span class="badge-tag bg-amber-950 text-amber-300 border border-amber-800">Medium</span>
+                    </div>
+                    <p class="text-xs text-slate-300 mb-2">Submits semi-randomized data payloads to trigger unexpected buffer overflows or application faults.</p>
+                    <span class="text-[10px] text-slate-500">Key Features: smean, sloss, tcprtt</span>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-rose-400">Backdoors & Shellcode</span>
+                        <span class="badge-tag bg-rose-950 text-rose-300 border border-rose-800">Critical</span>
+                    </div>
+                    <p class="text-xs text-slate-300 mb-2">Establishes covert command-and-control channels or injects bytecode instructions for arbitrary code execution.</p>
+                    <span class="text-[10px] text-slate-500">Key Features: sttl, ct_state_ttl, dbytes</span>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-cyan-400">Generic Attacks</span>
+                        <span class="badge-tag bg-cyan-950 text-cyan-300 border border-cyan-800">Medium</span>
+                    </div>
+                    <p class="text-xs text-slate-300 mb-2">Cryptographic collision or protocol manipulation attacks that bypass standard security filters.</p>
+                    <span class="text-[10px] text-slate-500">Key Features: ct_dst_src_ltm, rate, sloss</span>
+                </div>
+            </div>
+
+            <!-- Interactive Security Advisory Console -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                <h3 class="text-sm font-bold text-white flex items-center">
+                    <i class="fa-solid fa-terminal text-cyan-400 mr-2"></i>Security Advisory Incident Inspector
+                </h3>
+                <p class="text-xs text-slate-400">When network alerts are triggered in Live Monitoring, clicking "Inspect" opens full AI explanations and defensive recommendations.</p>
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-slate-300 space-y-2">
+                    <div class="text-emerald-400 font-bold">> AI Security Advisor status: STANDBY / LISTENING</div>
+                    <div class="text-slate-400">> ML detection engine connected to WebSocket stream</div>
+                    <div class="text-slate-400">> Rule-based fallback active for offline explanations</div>
+                    <div class="text-slate-400">> Advisory-only mode enabled (zero automatic network disruptions)</div>
+                </div>
+            </div>
         </section>
 
     </main>
 
-    <!-- AI Security Agent Recommendation Drawer/Modal -->
-    <div id="ai-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex justify-center items-center p-4">
-        <div class="bg-slate-900 border border-cyan-500/40 rounded-2xl max-w-2xl w-full p-6 shadow-2xl shadow-cyan-500/10 space-y-4">
+    <!-- ========================================================= -->
+    <!-- MODALS -->
+    <!-- ========================================================= -->
+
+    <!-- Alert Deep Inspection Modal -->
+    <div id="alert-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex justify-center items-center p-4">
+        <div class="bg-slate-900 border border-rose-500/40 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
             <div class="flex justify-between items-start border-b border-slate-800 pb-3">
                 <div class="flex items-center space-x-2">
-                    <div class="bg-cyan-500/20 text-cyan-400 p-2 rounded-lg">
-                        <i class="fa-solid fa-robot text-lg"></i>
+                    <div class="bg-rose-500/20 text-rose-400 p-2 rounded-lg">
+                        <i class="fa-solid fa-triangle-exclamation text-lg"></i>
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-white">AI Security Agent Recommendation</h3>
-                        <p class="text-xs text-slate-400" id="ai-flow-id">Flow ID: --</p>
+                        <h3 class="text-base font-bold text-white">Alert Deep Inspection & AI Advice</h3>
+                        <p class="text-xs text-slate-400" id="alert-modal-key">Flow Key: --</p>
                     </div>
                 </div>
-                <button onclick="closeAiModal()" class="text-slate-400 hover:text-white text-lg px-2">
+                <button onclick="closeAlertModal()" class="text-slate-400 hover:text-white text-lg px-2">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
             <div class="space-y-3 text-xs">
-                <div>
-                    <span class="text-slate-400 font-semibold block mb-1">Threat Summary</span>
-                    <p id="ai-summary" class="bg-slate-950 p-3 rounded-lg text-slate-200 font-medium border border-slate-800"></p>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <span class="text-slate-400 font-semibold block mb-1">Severity Rating</span>
-                        <span id="ai-severity" class="inline-block px-3 py-1 rounded font-bold text-xs">--</span>
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                        <span class="text-[10px] text-slate-400 uppercase block">Prediction</span>
+                        <span id="alert-modal-pred" class="font-bold text-rose-400">Attack</span>
                     </div>
-                    <div>
-                        <span class="text-slate-400 font-semibold block mb-1">Advisory Status</span>
-                        <span class="inline-block px-3 py-1 rounded font-bold text-xs bg-slate-800 text-cyan-400">Recommendation Only (Non-Destructive)</span>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                        <span class="text-[10px] text-slate-400 uppercase block">Category</span>
+                        <span id="alert-modal-cat" class="font-bold text-white">Generic</span>
+                    </div>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                        <span class="text-[10px] text-slate-400 uppercase block">Confidence</span>
+                        <span id="alert-modal-conf" class="font-bold text-cyan-400">95.0%</span>
                     </div>
                 </div>
 
                 <div>
-                    <span class="text-slate-400 font-semibold block mb-1">Technical Explanation</span>
-                    <p id="ai-explanation" class="bg-slate-950 p-3 rounded-lg text-slate-300 border border-slate-800 leading-relaxed"></p>
+                    <span class="text-slate-400 font-semibold block mb-1">What Happened</span>
+                    <p id="alert-modal-summary" class="bg-slate-950 p-3 rounded-lg text-slate-200 border border-slate-800 leading-relaxed"></p>
                 </div>
 
                 <div>
-                    <span class="text-slate-400 font-semibold block mb-1">Recommended Actions</span>
-                    <ul id="ai-actions" class="list-disc list-inside bg-slate-950 p-3 rounded-lg text-slate-300 space-y-1 border border-slate-800"></ul>
+                    <span class="text-slate-400 font-semibold block mb-1">Extracted 19-Feature Breakdown</span>
+                    <div id="alert-modal-features" class="bg-slate-950 p-3 rounded-lg text-slate-300 font-mono text-[11px] border border-slate-800 max-h-36 overflow-y-auto grid grid-cols-2 gap-x-4 gap-y-1"></div>
                 </div>
 
                 <div>
-                    <span class="text-slate-400 font-semibold block mb-1">Investigation Guidance</span>
-                    <ul id="ai-guidance" class="list-disc list-inside bg-slate-950 p-3 rounded-lg text-slate-300 space-y-1 border border-slate-800"></ul>
+                    <span class="text-slate-400 font-semibold block mb-1">Recommended Action Steps</span>
+                    <ul id="alert-modal-actions" class="list-disc list-inside bg-slate-950 p-3 rounded-lg text-slate-300 space-y-1 border border-slate-800"></ul>
                 </div>
             </div>
 
-            <div class="pt-2 text-right">
-                <button onclick="closeAiModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-5 py-2 rounded-xl text-xs font-semibold">
-                    Close Guidance
+            <div class="pt-2 flex justify-between items-center border-t border-slate-800">
+                <span class="text-[11px] text-slate-500 italic"><i class="fa-solid fa-circle-info mr-1"></i>Non-destructive security recommendation</span>
+                <button onclick="closeAlertModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-1.5 rounded-xl text-xs font-semibold">
+                    Close Details
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Session Summary Modal -->
+    <div id="session-summary-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden flex justify-center items-center p-4">
+        <div class="bg-slate-900 border border-cyan-500/50 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-cyan-500/20 text-cyan-400 p-2.5 rounded-xl">
+                        <i class="fa-solid fa-square-poll-vertical text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white">Live Session Summary</h3>
+                        <p class="text-xs text-slate-400">Monitoring Session Complete</p>
+                    </div>
+                </div>
+                <button onclick="closeSessionSummaryModal()" class="text-slate-400 hover:text-white text-lg px-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                    <p class="text-xs text-slate-400">Session Duration</p>
+                    <p id="sum-duration" class="text-xl font-bold text-cyan-400 mt-1">00:00:00</p>
+                </div>
+                <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                    <p class="text-xs text-slate-400">Packets Captured</p>
+                    <p id="sum-packets" class="text-xl font-bold text-white mt-1">0</p>
+                </div>
+                <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                    <p class="text-xs text-emerald-400">Normal Flows</p>
+                    <p id="sum-normal" class="text-xl font-bold text-emerald-400 mt-1">0</p>
+                </div>
+                <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                    <p class="text-xs text-rose-400">Attack Alerts</p>
+                    <p id="sum-attack" class="text-xl font-bold text-rose-400 mt-1">0</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-1">
+                <div class="flex justify-between">
+                    <span>Interface:</span>
+                    <span id="sum-iface" class="font-semibold text-slate-200">--</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Mode:</span>
+                    <span id="sum-mode" class="font-semibold text-amber-400">--</span>
+                </div>
+            </div>
+
+            <div class="flex space-x-3 pt-2">
+                <button onclick="downloadLivePdfReport()" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white py-2.5 rounded-xl font-semibold text-xs transition shadow-lg shadow-cyan-600/20 flex items-center justify-center">
+                    <i class="fa-solid fa-file-pdf mr-2"></i>Download Live Report (PDF)
+                </button>
+                <button onclick="closeSessionSummaryModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-5 py-2.5 rounded-xl text-xs font-semibold">
+                    Close Summary
                 </button>
             </div>
         </div>

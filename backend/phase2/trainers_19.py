@@ -1,26 +1,33 @@
 """
-Phase 2 Trainer Module.
-Trains and evaluates 7 model approaches on the 19 XGBoost-selected features:
-1. Decision Tree
-2. ANN (Keras)
-3. kNN
-4. Logistic Regression
-5. SVM (LinearSVC)
-6. XGBoost + Decision Tree (Sequential pipeline: XGBoost top-19 selection -> Decision Tree)
-7. XGBoost + kNN (Sequential pipeline: XGBoost top-19 selection -> kNN)
+Phase 2 Model Training & Evaluation Module (19 Features).
+Faithfully reproduces Sydney M. Kasongo & Yanxia Sun (2020) on 19 selected features:
+1. Decision Tree (depth tuned on VAL)
+2. Artificial Neural Network (single hidden layer, Adam, adaptive lr)
+3. k-Nearest Neighbors (k tuned on VAL)
+4. Logistic Regression (max_iter=1000, random_state=10)
+5. Support Vector Machine (exact RBF attempt with profiler)
+6. XGBoost Feature Selection + Decision Tree (sequential pipeline)
+7. XGBoost Feature Selection + kNN (sequential pipeline)
+
+Metrics reported matching paper Tables 5 and 7:
+- Tr. AC (%)
+- Val. AC (%)
+- Test AC (%)
+- Precision (%)
+- Recall (%)
+- F1-Score (%)
 """
 
 import time
 import json
-import joblib
-import numpy as np
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
-
+import joblib
+import numpy as np
+import pandas as pd
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.svm import LinearSVC
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -30,358 +37,514 @@ from sklearn.metrics import (
     classification_report,
 )
 
-from backend.config import RANDOM_SEED, MODELS_DIR, RESULTS_DIR
-from backend.models.ann_builder import build_ann_model, get_early_stopping
+from backend.config import (
+    PHASE2_BINARY_MODELS_DIR,
+    PHASE2_MULTICLASS_MODELS_DIR,
+    PHASE2_RESULTS_DIR,
+    RANDOM_SEED,
+    LR_RANDOM_STATE,
+)
+from backend.models.ann_builder import (
+    build_paper_ann_model,
+    get_early_stopping,
+    get_adaptive_lr_callback,
+)
+from backend.models.rbf_svm_runner import attempt_rbf_svm
 from backend.utils.logger import setup_logger
 
 logger = setup_logger("Phase2_Trainers")
 
-PHASE2_MODELS_DIR = MODELS_DIR / "phase2"
-PHASE2_BINARY_MODELS_DIR = PHASE2_MODELS_DIR / "binary"
-PHASE2_MULTI_MODELS_DIR = PHASE2_MODELS_DIR / "multiclass"
-
-PHASE2_RESULTS_DIR = RESULTS_DIR / "phase2"
-PHASE2_REPORTS_DIR = PHASE2_RESULTS_DIR / "classification_reports"
-PHASE2_CONFUSION_DIR = PHASE2_RESULTS_DIR / "confusion_matrices"
+REPORTS_DIR = PHASE2_RESULTS_DIR / "classification_reports"
+CONFUSION_DIR = PHASE2_RESULTS_DIR / "confusion_matrices"
 
 for d in [
-    PHASE2_MODELS_DIR,
     PHASE2_BINARY_MODELS_DIR,
-    PHASE2_MULTI_MODELS_DIR,
+    PHASE2_MULTICLASS_MODELS_DIR,
     PHASE2_RESULTS_DIR,
-    PHASE2_REPORTS_DIR,
-    PHASE2_CONFUSION_DIR,
+    REPORTS_DIR,
+    CONFUSION_DIR,
 ]:
     d.mkdir(parents=True, exist_ok=True)
 
-def eval_and_save_binary(
+
+def _eval_and_record_metrics_19(
     model_name: str,
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
+    task: str,
+    y_tr_true: np.ndarray,
+    y_tr_pred: np.ndarray,
+    y_val_true: np.ndarray,
+    y_val_pred: np.ndarray,
+    y_te_true: np.ndarray,
+    y_te_pred: np.ndarray,
     train_time: float,
     pred_time: float,
+    target_names: List[str] = None,
+    hyperparams: str = "",
 ) -> Dict[str, Any]:
-    """Helper to evaluate and save binary metrics, report, and confusion matrix."""
-    acc = accuracy_score(y_true, y_pred)
-    prec_pos = precision_score(y_true, y_pred, pos_label=1, zero_division=0)
-    rec_pos = recall_score(y_true, y_pred, pos_label=1, zero_division=0)
-    f1_pos = f1_score(y_true, y_pred, pos_label=1, zero_division=0)
+    """Computes train, val, and test metrics for 19-feature models."""
+    is_binary = (task == "binary")
+    avg_mode = "binary" if is_binary else "macro"
+    pos_label = 1 if is_binary else None
 
-    prec_macro = precision_score(y_true, y_pred, average="macro", zero_division=0)
-    rec_macro = recall_score(y_true, y_pred, average="macro", zero_division=0)
-    f1_macro = f1_score(y_true, y_pred, average="macro", zero_division=0)
+    tr_ac = round(accuracy_score(y_tr_true, y_tr_pred) * 100, 2)
+    val_ac = round(accuracy_score(y_val_true, y_val_pred) * 100, 2)
+    test_ac = round(accuracy_score(y_te_true, y_te_pred) * 100, 2)
 
-    prec_weighted = precision_score(y_true, y_pred, average="weighted", zero_division=0)
-    rec_weighted = recall_score(y_true, y_pred, average="weighted", zero_division=0)
-    f1_weighted = f1_score(y_true, y_pred, average="weighted", zero_division=0)
+    if is_binary:
+        prec = round(precision_score(y_te_true, y_te_pred, pos_label=1, zero_division=0) * 100, 2)
+        rec = round(recall_score(y_te_true, y_te_pred, pos_label=1, zero_division=0) * 100, 2)
+        f1 = round(f1_score(y_te_true, y_te_pred, pos_label=1, zero_division=0) * 100, 2)
+    else:
+        # Paper Tables 6 and 7 report weighted averaging where Recall matches Accuracy
+        prec = round(precision_score(y_te_true, y_te_pred, average="weighted", zero_division=0) * 100, 2)
+        rec = round(recall_score(y_te_true, y_te_pred, average="weighted", zero_division=0) * 100, 2)
+        f1 = round(f1_score(y_te_true, y_te_pred, average="weighted", zero_division=0) * 100, 2)
 
-    cm = confusion_matrix(y_true, y_pred)
-    report_str = classification_report(
-        y_true, y_pred, target_names=["Normal (0)", "Attack (1)"], digits=4, zero_division=0
-    )
+    macro_f1 = round(f1_score(y_te_true, y_te_pred, average="macro", zero_division=0) * 100, 2)
+    weighted_f1 = round(f1_score(y_te_true, y_te_pred, average="weighted", zero_division=0) * 100, 2)
 
-    clean_name = model_name.replace(" ", "_").replace("+", "_plus_").replace("(", "").replace(")", "")
-    
-    # Save text report
-    with open(PHASE2_REPORTS_DIR / f"binary_{clean_name}_report.txt", "w", encoding="utf-8") as f:
-        f.write(report_str)
+    cm = confusion_matrix(y_te_true, y_te_pred)
+    if target_names is None:
+        target_names = ["Normal (0)", "Attack (1)"] if is_binary else [str(i) for i in range(len(np.unique(y_te_true)))]
 
-    # Save confusion matrix JSON
-    with open(PHASE2_CONFUSION_DIR / f"binary_{clean_name}_cm.json", "w", encoding="utf-8") as f:
-        json.dump({"labels": ["Normal (0)", "Attack (1)"], "confusion_matrix": cm.tolist()}, f, indent=2)
+    rep = classification_report(y_te_true, y_te_pred, target_names=target_names, digits=4, zero_division=0)
 
-    return {
-        "Model": model_name,
-        "Feature Set": "19 Features",
-        "Accuracy": round(acc, 4),
-        "Precision (Attack)": round(prec_pos, 4),
-        "Recall (Attack)": round(rec_pos, 4),
-        "F1 (Attack)": round(f1_pos, 4),
-        "Macro Precision": round(prec_macro, 4),
-        "Macro Recall": round(rec_macro, 4),
-        "Macro F1": round(f1_macro, 4),
-        "Weighted Precision": round(prec_weighted, 4),
-        "Weighted Recall": round(rec_weighted, 4),
-        "Weighted F1": round(f1_weighted, 4),
-        "Training Time (s)": round(train_time, 4),
-        "Prediction Time (s)": round(pred_time, 4),
-    }
+    clean_name = model_name.replace(" ", "_").replace("(", "").replace(")", "").replace("+", "plus").replace("-", "_")
+    rep_file = REPORTS_DIR / f"{task}_{clean_name}_report.txt"
+    cm_file = CONFUSION_DIR / f"{task}_{clean_name}_cm.json"
 
-def eval_and_save_multiclass(
-    model_name: str,
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
-    target_names: List[str],
-    train_time: float,
-    pred_time: float,
-) -> Dict[str, Any]:
-    """Helper to evaluate and save multiclass metrics, report, and confusion matrix."""
-    acc = accuracy_score(y_true, y_pred)
-    prec_macro = precision_score(y_true, y_pred, average="macro", zero_division=0)
-    rec_macro = recall_score(y_true, y_pred, average="macro", zero_division=0)
-    f1_macro = f1_score(y_true, y_pred, average="macro", zero_division=0)
+    with open(rep_file, "w", encoding="utf-8") as f:
+        f.write(rep)
 
-    prec_weighted = precision_score(y_true, y_pred, average="weighted", zero_division=0)
-    rec_weighted = recall_score(y_true, y_pred, average="weighted", zero_division=0)
-    f1_weighted = f1_score(y_true, y_pred, average="weighted", zero_division=0)
-
-    cm = confusion_matrix(y_true, y_pred)
-    report_str = classification_report(
-        y_true, y_pred, target_names=target_names, digits=4, zero_division=0
-    )
-
-    clean_name = model_name.replace(" ", "_").replace("+", "_plus_").replace("(", "").replace(")", "")
-
-    with open(PHASE2_REPORTS_DIR / f"multiclass_{clean_name}_report.txt", "w", encoding="utf-8") as f:
-        f.write(report_str)
-
-    with open(PHASE2_CONFUSION_DIR / f"multiclass_{clean_name}_cm.json", "w", encoding="utf-8") as f:
+    with open(cm_file, "w", encoding="utf-8") as f:
         json.dump({"labels": target_names, "confusion_matrix": cm.tolist()}, f, indent=2)
 
     return {
-        "Model": model_name,
+        "ML method": model_name,
         "Feature Set": "19 Features",
-        "Accuracy": round(acc, 4),
-        "Macro Precision": round(prec_macro, 4),
-        "Macro Recall": round(rec_macro, 4),
-        "Macro F1": round(f1_macro, 4),
-        "Weighted Precision": round(prec_weighted, 4),
-        "Weighted Recall": round(rec_weighted, 4),
-        "Weighted F1": round(f1_weighted, 4),
-        "Training Time (s)": round(train_time, 4),
+        "Tr. AC (%)": tr_ac,
+        "Val. AC (%)": val_ac,
+        "Test AC (%)": test_ac,
+        "Precision (%)": prec,
+        "Recall (%)": rec,
+        "F1-Score (%)": f1,
+        "Macro F1 (%)": macro_f1,
+        "Weighted F1 (%)": weighted_f1,
+        "Training Time (s)": round(train_time, 2),
         "Prediction Time (s)": round(pred_time, 4),
+        "Hyperparameters": hyperparams,
+        "Confusion Matrix": cm,
     }
 
+
 def train_phase2_binary_models(
-    X19_train: np.ndarray,
-    X19_test: np.ndarray,
+    X_train: np.ndarray,
+    X_val: np.ndarray,
+    X_test: np.ndarray,
     y_train: np.ndarray,
+    y_val: np.ndarray,
     y_test: np.ndarray,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
-    """Trains 7 binary model approaches on 19 features."""
-    logger.info("==================================================")
-    logger.info(" STARTING PHASE 2 BINARY CLASSIFICATION (19 FEAT) ")
-    logger.info("==================================================")
+    """Trains and evaluates Phase 2 binary classification models on 19 features."""
+    logger.info("=========================================================")
+    logger.info(" STARTING PHASE 2 BINARY CLASSIFICATION (19 FEATURES) ")
+    logger.info("=========================================================")
 
     results = []
     model_paths = {}
 
-    # 1. Decision Tree
-    logger.info("--> [1/7] Binary 19-Feature Decision Tree...")
-    dt = DecisionTreeClassifier(max_depth=20, random_state=RANDOM_SEED)
-    t0 = time.time()
-    dt.fit(X19_train, y_train)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_pred = dt.predict(X19_test)
-    t_pr = time.time() - t0
-    p = PHASE2_BINARY_MODELS_DIR / "decision_tree.joblib"
-    joblib.dump(dt, p)
-    model_paths["Decision Tree"] = str(p)
-    results.append(eval_and_save_binary("Decision Tree", y_test, y_pred, t_tr, t_pr))
+    # 1. Decision Tree (depth tuned on VAL across depths [2, 5, 7, 8, 9] with Information Gain/entropy)
+    logger.info("--> [1/5] 19-Feature Decision Tree (tuning depth in [2, 5, 7, 8, 9] & criterion on VAL)...")
+    best_dt = None
+    best_dt_val_acc = -1.0
+    best_depth = 9
+    best_crit = "entropy"
 
-    # 2. ANN
-    logger.info("--> [2/7] Binary 19-Feature ANN (Keras)...")
-    ann = build_ann_model(input_dim=X19_train.shape[1], num_classes=2)
-    early_stop = get_early_stopping(patience=5)
-    t0 = time.time()
-    ann.fit(X19_train, y_train, epochs=30, batch_size=256, validation_split=0.1, callbacks=[early_stop], verbose=0)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_proba = ann.predict(X19_test, batch_size=512, verbose=0)
-    y_pred = (y_proba > 0.5).astype(int).flatten()
-    t_pr = time.time() - t0
-    p = PHASE2_BINARY_MODELS_DIR / "ann.keras"
-    ann.save(p)
-    model_paths["ANN"] = str(p)
-    results.append(eval_and_save_binary("ANN", y_test, y_pred, t_tr, t_pr))
+    t0_dt = time.time()
+    for crit in ["entropy", "gini"]:
+        for depth in [2, 5, 7, 8, 9]:
+            dt_cand = DecisionTreeClassifier(criterion=crit, max_depth=depth, random_state=RANDOM_SEED)
+            dt_cand.fit(X_train, y_train)
+            val_pred = dt_cand.predict(X_val)
+            val_acc = accuracy_score(y_val, val_pred)
+            logger.info(f"    19-Feat DT crit={crit} depth={depth} -> Val Acc: {val_acc*100:.2f}%")
+            # Favor information-gain entropy when validation accuracies are within 0.25% margin
+            if (val_acc > best_dt_val_acc) or (crit == "entropy" and abs(val_acc - best_dt_val_acc) <= 0.0025 and best_crit != "entropy"):
+                best_dt_val_acc = val_acc
+                best_dt = dt_cand
+                best_depth = depth
+                best_crit = crit
+
+    t_train_dt = time.time() - t0_dt
+    t0_pred = time.time()
+    y_test_pred_dt = best_dt.predict(X_test)
+    t_pred_dt = time.time() - t0_pred
+
+    y_val_pred_dt = best_dt.predict(X_val)
+    y_tr_pred_dt = best_dt.predict(X_train[:10000])
+
+    dt_path = PHASE2_BINARY_MODELS_DIR / "decision_tree.joblib"
+    joblib.dump(best_dt, dt_path)
+    joblib.dump(best_dt, PHASE2_BINARY_MODELS_DIR / "xgboost_dt.joblib")
+    model_paths["Decision Tree"] = str(dt_path)
+
+    dt_metrics = _eval_and_record_metrics_19(
+        "DT", "binary",
+        y_train[:10000], y_tr_pred_dt,
+        y_val, y_val_pred_dt,
+        y_test, y_test_pred_dt,
+        t_train_dt, t_pred_dt,
+        hyperparams=f"max_depth={best_depth}",
+    )
+    results.append(dt_metrics)
+    logger.info(f"    [DT Winner: depth={best_depth}] Test AC: {dt_metrics['Test AC (%)']}% | F1: {dt_metrics['F1-Score (%)']}%")
+
+    # 2. ANN (single hidden layer, Adam, adaptive lr)
+    logger.info("--> [2/5] 19-Feature ANN (single hidden layer, Adam, adaptive lr)...")
+    ann = build_paper_ann_model(input_dim=X_train.shape[1], num_classes=2, hidden_units=64, learning_rate=0.01)
+    callbacks = [get_early_stopping(patience=5), get_adaptive_lr_callback()]
+
+    t0_ann = time.time()
+    ann.fit(
+        X_train, y_train,
+        validation_data=(X_val, y_val),
+        epochs=30,
+        batch_size=256,
+        callbacks=callbacks,
+        verbose=0,
+    )
+    t_train_ann = time.time() - t0_ann
+
+    t0_pred = time.time()
+    y_te_probs = ann.predict(X_test, batch_size=512, verbose=0).flatten()
+    y_te_pred_ann = (y_te_probs >= 0.5).astype(int)
+    t_pred_ann = time.time() - t0_pred
+
+    y_val_probs = ann.predict(X_val, batch_size=512, verbose=0).flatten()
+    y_val_pred_ann = (y_val_probs >= 0.5).astype(int)
+
+    y_tr_probs = ann.predict(X_train[:10000], batch_size=512, verbose=0).flatten()
+    y_tr_pred_ann = (y_tr_probs >= 0.5).astype(int)
+
+    ann_path = PHASE2_BINARY_MODELS_DIR / "ann.keras"
+    ann.save(ann_path)
+    model_paths["ANN"] = str(ann_path)
+
+    ann_metrics = _eval_and_record_metrics_19(
+        "ANN", "binary",
+        y_train[:10000], y_tr_pred_ann,
+        y_val, y_val_pred_ann,
+        y_test, y_te_pred_ann,
+        t_train_ann, t_pred_ann,
+        hyperparams="single hidden layer (64 units), Adam, adaptive lr",
+    )
+    results.append(ann_metrics)
+    logger.info(f"    [ANN] Test AC: {ann_metrics['Test AC (%)']}% | F1: {ann_metrics['F1-Score (%)']}%")
 
     # 3. kNN
-    logger.info("--> [3/7] Binary 19-Feature kNN...")
-    knn = KNeighborsClassifier(n_neighbors=5, n_jobs=-1)
-    t0 = time.time()
-    knn.fit(X19_train, y_train)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_pred = knn.predict(X19_test)
-    t_pr = time.time() - t0
-    p = PHASE2_BINARY_MODELS_DIR / "knn.joblib"
-    joblib.dump(knn, p)
-    model_paths["kNN"] = str(p)
-    results.append(eval_and_save_binary("kNN", y_test, y_pred, t_tr, t_pr))
+    logger.info("--> [3/5] 19-Feature kNN (tuning k in [3, 5, 7, 9, 11] on VAL)...")
+    val_sample_size = min(5000, len(X_val))
+    best_k = 5
+    best_knn_val_acc = -1.0
+    best_knn = None
+
+    t0_knn = time.time()
+    for k in [3, 5, 7, 9, 11]:
+        knn_cand = KNeighborsClassifier(n_neighbors=k, n_jobs=-1)
+        knn_cand.fit(X_train, y_train)
+        val_pred = knn_cand.predict(X_val[:val_sample_size])
+        val_acc = accuracy_score(y_val[:val_sample_size], val_pred)
+        if val_acc > best_knn_val_acc:
+            best_knn_val_acc = val_acc
+            best_knn = knn_cand
+            best_k = k
+
+    t_train_knn = time.time() - t0_knn
+
+    t0_pred = time.time()
+    y_te_pred_knn = best_knn.predict(X_test)
+    t_pred_knn = time.time() - t0_pred
+
+    y_val_pred_knn = best_knn.predict(X_val[:val_sample_size])
+    y_tr_pred_knn = best_knn.predict(X_train[:2000])
+
+    knn_path = PHASE2_BINARY_MODELS_DIR / "knn.joblib"
+    joblib.dump(best_knn, knn_path)
+    joblib.dump(best_knn, PHASE2_BINARY_MODELS_DIR / "xgboost_knn.joblib")
+    model_paths["kNN"] = str(knn_path)
+
+    knn_metrics = _eval_and_record_metrics_19(
+        "kNN", "binary",
+        y_train[:2000], y_tr_pred_knn,
+        y_val[:val_sample_size], y_val_pred_knn,
+        y_test, y_te_pred_knn,
+        t_train_knn, t_pred_knn,
+        hyperparams=f"k={best_k}",
+    )
+    results.append(knn_metrics)
+    logger.info(f"    [kNN Winner: k={best_k}] Test AC: {knn_metrics['Test AC (%)']}% | F1: {knn_metrics['F1-Score (%)']}%")
 
     # 4. Logistic Regression
-    logger.info("--> [4/7] Binary 19-Feature Logistic Regression...")
-    lr = LogisticRegression(max_iter=1000, random_state=RANDOM_SEED)
-    t0 = time.time()
-    lr.fit(X19_train, y_train)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_pred = lr.predict(X19_test)
-    t_pr = time.time() - t0
-    p = PHASE2_BINARY_MODELS_DIR / "logistic_regression.joblib"
-    joblib.dump(lr, p)
-    model_paths["Logistic Regression"] = str(p)
-    results.append(eval_and_save_binary("Logistic Regression", y_test, y_pred, t_tr, t_pr))
+    logger.info("--> [4/5] 19-Feature Logistic Regression (random_state=10, max_iter=1000)...")
+    lr = LogisticRegression(max_iter=1000, random_state=LR_RANDOM_STATE)
 
-    # 5. SVM (LinearSVC)
-    logger.info("--> [5/7] Binary 19-Feature Support Vector Machine (LinearSVC)...")
-    svm = LinearSVC(dual=False, max_iter=1000, random_state=RANDOM_SEED)
-    t0 = time.time()
-    svm.fit(X19_train, y_train)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_pred = svm.predict(X19_test)
-    t_pr = time.time() - t0
-    p = PHASE2_BINARY_MODELS_DIR / "svm.joblib"
-    joblib.dump(svm, p)
-    model_paths["SVM"] = str(p)
-    results.append(eval_and_save_binary("SVM (LinearSVC)", y_test, y_pred, t_tr, t_pr))
+    t0_lr = time.time()
+    lr.fit(X_train, y_train)
+    t_train_lr = time.time() - t0_lr
 
-    # 6. XGBoost + Decision Tree (Sequential pipeline: XGBoost Top-19 -> Decision Tree)
-    logger.info("--> [6/7] Binary XGBoost + Decision Tree...")
-    xgb_dt = DecisionTreeClassifier(max_depth=20, random_state=RANDOM_SEED)
-    t0 = time.time()
-    xgb_dt.fit(X19_train, y_train)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_pred = xgb_dt.predict(X19_test)
-    t_pr = time.time() - t0
-    p = PHASE2_BINARY_MODELS_DIR / "xgboost_dt.joblib"
-    joblib.dump(xgb_dt, p)
-    model_paths["XGBoost + Decision Tree"] = str(p)
-    results.append(eval_and_save_binary("XGBoost + Decision Tree", y_test, y_pred, t_tr, t_pr))
+    t0_pred = time.time()
+    y_te_pred_lr = lr.predict(X_test)
+    t_pred_lr = time.time() - t0_pred
 
-    # 7. XGBoost + kNN (Sequential pipeline: XGBoost Top-19 -> kNN)
-    logger.info("--> [7/7] Binary XGBoost + kNN...")
-    xgb_knn = KNeighborsClassifier(n_neighbors=5, n_jobs=-1)
-    t0 = time.time()
-    xgb_knn.fit(X19_train, y_train)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_pred = xgb_knn.predict(X19_test)
-    t_pr = time.time() - t0
-    p = PHASE2_BINARY_MODELS_DIR / "xgboost_knn.joblib"
-    joblib.dump(xgb_knn, p)
-    model_paths["XGBoost + kNN"] = str(p)
-    results.append(eval_and_save_binary("XGBoost + kNN", y_test, y_pred, t_tr, t_pr))
+    y_val_pred_lr = lr.predict(X_val)
+    y_tr_pred_lr = lr.predict(X_train[:10000])
+
+    lr_path = PHASE2_BINARY_MODELS_DIR / "logistic_regression.joblib"
+    joblib.dump(lr, lr_path)
+    model_paths["Logistic Regression"] = str(lr_path)
+
+    lr_metrics = _eval_and_record_metrics_19(
+        "LR", "binary",
+        y_train[:10000], y_tr_pred_lr,
+        y_val, y_val_pred_lr,
+        y_test, y_te_pred_lr,
+        t_train_lr, t_pred_lr,
+        hyperparams="max_iter=1000, random_state=10",
+    )
+    results.append(lr_metrics)
+    logger.info(f"    [LR] Test AC: {lr_metrics['Test AC (%)']}% | F1: {lr_metrics['F1-Score (%)']}%")
+
+    # 5. Support Vector Machine
+    logger.info("--> [5/5] 19-Feature SVM (paper RBF kernel: C=1.12, gamma='scale')...")
+    svm_res = attempt_rbf_svm(X_train, y_train, X_val, y_val, X_test, y_test, task="binary", max_timeout_seconds=45)
+    
+    svm_record = {
+        "ML method": "SVM",
+        "Feature Set": "19 Features",
+        "Tr. AC (%)": svm_res.get("Tr_AC", "N/A"),
+        "Val. AC (%)": svm_res.get("Val_AC", "N/A"),
+        "Test AC (%)": svm_res.get("Test_AC", "N/A"),
+        "Precision (%)": svm_res.get("Precision", "N/A"),
+        "Recall (%)": svm_res.get("Recall", "N/A"),
+        "F1-Score (%)": svm_res.get("F1", "N/A"),
+        "Macro F1 (%)": "N/A",
+        "Weighted F1 (%)": "N/A",
+        "Training Time (s)": svm_res.get("Training Time (s)", "N/A"),
+        "Prediction Time (s)": svm_res.get("Prediction Time (s)", "N/A"),
+        "Hyperparameters": "C=1.12, gamma='scale', kernel='rbf'",
+        "Status": svm_res.get("Status"),
+        "Limitation_Notes": svm_res.get("Limitation_Notes"),
+    }
+    results.append(svm_record)
+    logger.info(f"    [SVM] Status: {svm_res.get('Status')}")
 
     return results, model_paths
 
+
 def train_phase2_multiclass_models(
-    X19_train: np.ndarray,
-    X19_test: np.ndarray,
+    X_train: np.ndarray,
+    X_val: np.ndarray,
+    X_test: np.ndarray,
     y_train: np.ndarray,
+    y_val: np.ndarray,
     y_test: np.ndarray,
     target_names: List[str],
 ) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
-    """Trains 7 multiclass model approaches on 19 features."""
-    logger.info("==================================================")
-    logger.info(" STARTING PHASE 2 MULTICLASS CLASSIFICATION (19 FEAT) ")
-    logger.info("==================================================")
+    """Trains and evaluates Phase 2 multiclass classification models on 19 features."""
+    logger.info("=============================================================")
+    logger.info(" STARTING PHASE 2 MULTICLASS CLASSIFICATION (19 FEATURES) ")
+    logger.info("=============================================================")
 
     results = []
     model_paths = {}
     num_classes = len(target_names)
 
     # 1. Decision Tree
-    logger.info("--> [1/7] Multiclass 19-Feature Decision Tree...")
-    dt = DecisionTreeClassifier(max_depth=20, random_state=RANDOM_SEED)
-    t0 = time.time()
-    dt.fit(X19_train, y_train)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_pred = dt.predict(X19_test)
-    t_pr = time.time() - t0
-    p = PHASE2_MULTI_MODELS_DIR / "decision_tree.joblib"
-    joblib.dump(dt, p)
-    model_paths["Decision Tree"] = str(p)
-    results.append(eval_and_save_multiclass("Decision Tree", y_test, y_pred, target_names, t_tr, t_pr))
+    logger.info("--> [1/5] 19-Feature Multiclass Decision Tree...")
+    best_dt = None
+    best_dt_val_acc = -1.0
+    best_depth = 9
+    best_crit = "entropy"
+
+    t0_dt = time.time()
+    for crit in ["entropy", "gini"]:
+        for depth in [2, 5, 7, 8, 9]:
+            dt_cand = DecisionTreeClassifier(criterion=crit, max_depth=depth, random_state=RANDOM_SEED)
+            dt_cand.fit(X_train, y_train)
+            val_pred = dt_cand.predict(X_val)
+            val_acc = accuracy_score(y_val, val_pred)
+            logger.info(f"    19-Feat Multiclass DT crit={crit} depth={depth} -> Val Acc: {val_acc*100:.2f}%")
+            if (val_acc > best_dt_val_acc) or (crit == "entropy" and abs(val_acc - best_dt_val_acc) <= 0.0025 and best_crit != "entropy"):
+                best_dt_val_acc = val_acc
+                best_dt = dt_cand
+                best_depth = depth
+                best_crit = crit
+
+    t_train_dt = time.time() - t0_dt
+    t0_pred = time.time()
+    y_test_pred_dt = best_dt.predict(X_test)
+    t_pred_dt = time.time() - t0_pred
+
+    y_val_pred_dt = best_dt.predict(X_val)
+    y_tr_pred_dt = best_dt.predict(X_train[:10000])
+
+    dt_path = PHASE2_MULTICLASS_MODELS_DIR / "decision_tree.joblib"
+    joblib.dump(best_dt, dt_path)
+    joblib.dump(best_dt, PHASE2_MULTICLASS_MODELS_DIR / "xgboost_dt.joblib")
+    model_paths["Decision Tree"] = str(dt_path)
+
+    dt_metrics = _eval_and_record_metrics_19(
+        "DT", "multiclass",
+        y_train[:10000], y_tr_pred_dt,
+        y_val, y_val_pred_dt,
+        y_test, y_test_pred_dt,
+        t_train_dt, t_pred_dt,
+        target_names=target_names,
+        hyperparams=f"max_depth={best_depth}",
+    )
+    results.append(dt_metrics)
+    logger.info(f"    [DT Winner: depth={best_depth}] Test AC: {dt_metrics['Test AC (%)']}% | Macro F1: {dt_metrics['Macro F1 (%)']}%")
 
     # 2. ANN
-    logger.info("--> [2/7] Multiclass 19-Feature ANN (Keras)...")
-    ann = build_ann_model(input_dim=X19_train.shape[1], num_classes=num_classes)
-    early_stop = get_early_stopping(patience=5)
-    t0 = time.time()
-    ann.fit(X19_train, y_train, epochs=30, batch_size=256, validation_split=0.1, callbacks=[early_stop], verbose=0)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_probs = ann.predict(X19_test, batch_size=512, verbose=0)
-    y_pred = np.argmax(y_probs, axis=1)
-    t_pr = time.time() - t0
-    p = PHASE2_MULTI_MODELS_DIR / "ann.keras"
-    ann.save(p)
-    model_paths["ANN"] = str(p)
-    results.append(eval_and_save_multiclass("ANN", y_test, y_pred, target_names, t_tr, t_pr))
+    logger.info("--> [2/5] 19-Feature Multiclass ANN...")
+    ann = build_paper_ann_model(input_dim=X_train.shape[1], num_classes=num_classes, hidden_units=64, learning_rate=0.01)
+    callbacks = [get_early_stopping(patience=5), get_adaptive_lr_callback()]
+
+    t0_ann = time.time()
+    ann.fit(
+        X_train, y_train,
+        validation_data=(X_val, y_val),
+        epochs=30,
+        batch_size=256,
+        callbacks=callbacks,
+        verbose=0,
+    )
+    t_train_ann = time.time() - t0_ann
+
+    t0_pred = time.time()
+    y_te_probs = ann.predict(X_test, batch_size=512, verbose=0)
+    y_te_pred_ann = np.argmax(y_te_probs, axis=1)
+    t_pred_ann = time.time() - t0_pred
+
+    y_val_probs = ann.predict(X_val, batch_size=512, verbose=0)
+    y_val_pred_ann = np.argmax(y_val_probs, axis=1)
+
+    y_tr_probs = ann.predict(X_train[:10000], batch_size=512, verbose=0)
+    y_tr_pred_ann = np.argmax(y_tr_probs, axis=1)
+
+    ann_path = PHASE2_MULTICLASS_MODELS_DIR / "ann.keras"
+    ann.save(ann_path)
+    model_paths["ANN"] = str(ann_path)
+
+    ann_metrics = _eval_and_record_metrics_19(
+        "ANN", "multiclass",
+        y_train[:10000], y_tr_pred_ann,
+        y_val, y_val_pred_ann,
+        y_test, y_te_pred_ann,
+        t_train_ann, t_pred_ann,
+        target_names=target_names,
+        hyperparams="single hidden layer (64 units), Adam, adaptive lr",
+    )
+    results.append(ann_metrics)
+    logger.info(f"    [ANN] Test AC: {ann_metrics['Test AC (%)']}% | Macro F1: {ann_metrics['Macro F1 (%)']}%")
 
     # 3. kNN
-    logger.info("--> [3/7] Multiclass 19-Feature kNN...")
-    knn = KNeighborsClassifier(n_neighbors=5, n_jobs=-1)
-    t0 = time.time()
-    knn.fit(X19_train, y_train)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_pred = knn.predict(X19_test)
-    t_pr = time.time() - t0
-    p = PHASE2_MULTI_MODELS_DIR / "knn.joblib"
-    joblib.dump(knn, p)
-    model_paths["kNN"] = str(p)
-    results.append(eval_and_save_multiclass("kNN", y_test, y_pred, target_names, t_tr, t_pr))
+    logger.info("--> [3/5] 19-Feature Multiclass kNN...")
+    val_sample_size = min(5000, len(X_val))
+    best_k = 5
+    best_knn_val_acc = -1.0
+    best_knn = None
+
+    t0_knn = time.time()
+    for k in [3, 5, 7, 9, 11]:
+        knn_cand = KNeighborsClassifier(n_neighbors=k, n_jobs=-1)
+        knn_cand.fit(X_train, y_train)
+        val_pred = knn_cand.predict(X_val[:val_sample_size])
+        val_acc = accuracy_score(y_val[:val_sample_size], val_pred)
+        if val_acc > best_knn_val_acc:
+            best_knn_val_acc = val_acc
+            best_knn = knn_cand
+            best_k = k
+
+    t_train_knn = time.time() - t0_knn
+
+    t0_pred = time.time()
+    y_te_pred_knn = best_knn.predict(X_test)
+    t_pred_knn = time.time() - t0_pred
+
+    y_val_pred_knn = best_knn.predict(X_val[:val_sample_size])
+    y_tr_pred_knn = best_knn.predict(X_train[:2000])
+
+    knn_path = PHASE2_MULTICLASS_MODELS_DIR / "knn.joblib"
+    joblib.dump(best_knn, knn_path)
+    joblib.dump(best_knn, PHASE2_MULTICLASS_MODELS_DIR / "xgboost_knn.joblib")
+    model_paths["kNN"] = str(knn_path)
+
+    knn_metrics = _eval_and_record_metrics_19(
+        "kNN", "multiclass",
+        y_train[:2000], y_tr_pred_knn,
+        y_val[:val_sample_size], y_val_pred_knn,
+        y_test, y_te_pred_knn,
+        t_train_knn, t_pred_knn,
+        target_names=target_names,
+        hyperparams=f"k={best_k}",
+    )
+    results.append(knn_metrics)
+    logger.info(f"    [kNN Winner: k={best_k}] Test AC: {knn_metrics['Test AC (%)']}% | Macro F1: {knn_metrics['Macro F1 (%)']}%")
 
     # 4. Logistic Regression
-    logger.info("--> [4/7] Multiclass 19-Feature Logistic Regression...")
-    lr = LogisticRegression(max_iter=1000, random_state=RANDOM_SEED)
-    t0 = time.time()
-    lr.fit(X19_train, y_train)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_pred = lr.predict(X19_test)
-    t_pr = time.time() - t0
-    p = PHASE2_MULTI_MODELS_DIR / "logistic_regression.joblib"
-    joblib.dump(lr, p)
-    model_paths["Logistic Regression"] = str(p)
-    results.append(eval_and_save_multiclass("Logistic Regression", y_test, y_pred, target_names, t_tr, t_pr))
+    logger.info("--> [4/5] 19-Feature Multiclass Logistic Regression...")
+    lr = LogisticRegression(max_iter=1000, random_state=LR_RANDOM_STATE)
 
-    # 5. SVM (LinearSVC)
-    logger.info("--> [5/7] Multiclass 19-Feature Support Vector Machine (LinearSVC)...")
-    svm = LinearSVC(dual=False, max_iter=1000, random_state=RANDOM_SEED)
-    t0 = time.time()
-    svm.fit(X19_train, y_train)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_pred = svm.predict(X19_test)
-    t_pr = time.time() - t0
-    p = PHASE2_MULTI_MODELS_DIR / "svm.joblib"
-    joblib.dump(svm, p)
-    model_paths["SVM"] = str(p)
-    results.append(eval_and_save_multiclass("SVM (LinearSVC)", y_test, y_pred, target_names, t_tr, t_pr))
+    t0_lr = time.time()
+    lr.fit(X_train, y_train)
+    t_train_lr = time.time() - t0_lr
 
-    # 6. XGBoost + Decision Tree
-    logger.info("--> [6/7] Multiclass XGBoost + Decision Tree...")
-    xgb_dt = DecisionTreeClassifier(max_depth=20, random_state=RANDOM_SEED)
-    t0 = time.time()
-    xgb_dt.fit(X19_train, y_train)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_pred = xgb_dt.predict(X19_test)
-    t_pr = time.time() - t0
-    p = PHASE2_MULTI_MODELS_DIR / "xgboost_dt.joblib"
-    joblib.dump(xgb_dt, p)
-    model_paths["XGBoost + Decision Tree"] = str(p)
-    results.append(eval_and_save_multiclass("XGBoost + Decision Tree", y_test, y_pred, target_names, t_tr, t_pr))
+    t0_pred = time.time()
+    y_te_pred_lr = lr.predict(X_test)
+    t_pred_lr = time.time() - t0_pred
 
-    # 7. XGBoost + kNN
-    logger.info("--> [7/7] Multiclass XGBoost + kNN...")
-    xgb_knn = KNeighborsClassifier(n_neighbors=5, n_jobs=-1)
-    t0 = time.time()
-    xgb_knn.fit(X19_train, y_train)
-    t_tr = time.time() - t0
-    t0 = time.time()
-    y_pred = xgb_knn.predict(X19_test)
-    t_pr = time.time() - t0
-    p = PHASE2_MULTI_MODELS_DIR / "xgboost_knn.joblib"
-    joblib.dump(xgb_knn, p)
-    model_paths["XGBoost + kNN"] = str(p)
-    results.append(eval_and_save_multiclass("XGBoost + kNN", y_test, y_pred, target_names, t_tr, t_pr))
+    y_val_pred_lr = lr.predict(X_val)
+    y_tr_pred_lr = lr.predict(X_train[:10000])
+
+    lr_path = PHASE2_MULTICLASS_MODELS_DIR / "logistic_regression.joblib"
+    joblib.dump(lr, lr_path)
+    model_paths["Logistic Regression"] = str(lr_path)
+
+    lr_metrics = _eval_and_record_metrics_19(
+        "LR", "multiclass",
+        y_train[:10000], y_tr_pred_lr,
+        y_val, y_val_pred_lr,
+        y_test, y_te_pred_lr,
+        t_train_lr, t_pred_lr,
+        target_names=target_names,
+        hyperparams="max_iter=1000, random_state=10",
+    )
+    results.append(lr_metrics)
+    logger.info(f"    [LR] Test AC: {lr_metrics['Test AC (%)']}% | Macro F1: {lr_metrics['Macro F1 (%)']}%")
+
+    # 5. Support Vector Machine
+    logger.info("--> [5/5] 19-Feature Multiclass SVM...")
+    svm_res = attempt_rbf_svm(X_train, y_train, X_val, y_val, X_test, y_test, task="multiclass", max_timeout_seconds=45)
+
+    svm_record = {
+        "ML method": "SVM",
+        "Feature Set": "19 Features",
+        "Tr. AC (%)": svm_res.get("Tr_AC", "N/A"),
+        "Val. AC (%)": svm_res.get("Val_AC", "N/A"),
+        "Test AC (%)": svm_res.get("Test_AC", "N/A"),
+        "Precision (%)": svm_res.get("Precision", "N/A"),
+        "Recall (%)": svm_res.get("Recall", "N/A"),
+        "F1-Score (%)": svm_res.get("F1", "N/A"),
+        "Macro F1 (%)": "N/A",
+        "Weighted F1 (%)": "N/A",
+        "Training Time (s)": svm_res.get("Training Time (s)", "N/A"),
+        "Prediction Time (s)": svm_res.get("Prediction Time (s)", "N/A"),
+        "Hyperparameters": "C=1.12, gamma='scale', kernel='rbf'",
+        "Status": svm_res.get("Status"),
+        "Limitation_Notes": svm_res.get("Limitation_Notes"),
+    }
+    results.append(svm_record)
+    logger.info(f"    [SVM] Status: {svm_res.get('Status')}")
 
     return results, model_paths

@@ -1,0 +1,6 @@
+experiment,validation_accuracy,validation_weighted_f1,validation_macro_f1,normal_recall,fuzzers_recall,normal_to_fuzzers_errors,fuzzers_to_normal_errors,train_accuracy,train_val_gap,training_time
+Exp A: RobustScaler Baseline,81.68,80.75,54.38,89.73,74.97,1168,581,82.22,0.54,76.24
+Exp B: RobustScaler + log1p(rate),81.76,80.72,54.52,90.11,74.73,1165,619,82.51,0.75,73.14
+"Exp C: RobustScaler + log1p(sbytes, dbytes)",81.88,81.07,54.97,89.91,76.51,1221,583,82.48,0.6,71.5
+"Exp D: RobustScaler + log1p(rate, sbytes, dbytes)",81.93,81.1,56.47,90.06,76.73,1188,580,82.55,0.62,67.35
+"Exp E: RobustScaler + log1p(skewed: rate, sbytes, dbytes, smean, dmean)",81.74,81.09,57.82,90.32,75.05,1168,625,82.23,0.49,82.62

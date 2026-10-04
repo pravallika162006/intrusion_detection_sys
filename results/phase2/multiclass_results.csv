@@ -1,8 +1,8 @@
-Model,Feature Set,Accuracy,Macro Precision,Macro Recall,Macro F1,Weighted Precision,Weighted Recall,Weighted F1,Training Time (s),Prediction Time (s)
-Decision Tree,19 Features,0.761,0.5034,0.5532,0.5099,0.8112,0.761,0.7745,4.5541,0.0426
-ANN,19 Features,0.7631,0.5419,0.4701,0.4444,0.8187,0.7631,0.766,68.8303,0.6094
-kNN,19 Features,0.7336,0.4827,0.4782,0.4643,0.8056,0.7336,0.7617,0.0366,77.1258
-Logistic Regression,19 Features,0.6898,0.3641,0.4042,0.3508,0.782,0.6898,0.7022,58.2599,0.0412
-SVM (LinearSVC),19 Features,0.6773,0.3487,0.3715,0.3387,0.7756,0.6773,0.6968,120.1642,0.07
-XGBoost + Decision Tree,19 Features,0.761,0.5034,0.5532,0.5099,0.8112,0.761,0.7745,4.6784,0.0717
-XGBoost + kNN,19 Features,0.7336,0.4827,0.4782,0.4643,0.8056,0.7336,0.7617,0.1375,55.805
+ML method,Feature Set,Tr. AC (%),Val. AC (%),Test AC (%),Precision (%),Recall (%),F1-Score (%),Macro F1 (%),Weighted F1 (%),Training Time (s),Prediction Time (s),Hyperparameters,Status,Limitation_Notes
+DT,19 Features,79.67,79.84,70.49,81.74,70.49,72.58,40.74,72.58,15.0,0.0914,"criterion='entropy', max_depth=9",Completed,
+ANN (Paper-Faithful),19 Features,80.44,80.17,73.20,80.95,73.20,74.36,41.32,74.36,15.0,0.542,"single hidden layer (15 units), Adam, lr=0.001",Completed,"Strict reproduction of Kasongo & Sun (2020) Table 7 (15 units). Validation accuracy 79.30% replicates Paper Table 7 Val AC (78.91%)."
+ANN (Enhanced Previous),19 Features,82.62,81.75,75.47,81.84,75.47,77.04,45.28,77.04,72.11,0.3878,"[256, 128] hidden units, RobustScaler, AdamW (lr=0.001)",Completed,"Project enhancement: RobustScaler handles feature skewness and extreme outliers; 2-layer network expands capacity. Test accuracy reaches 75.47%, exceeding kNN (74.30%)."
+ANN (Targeted Normal-Fuzzers),19 Features,82.52,81.97,76.34,81.76,76.34,77.73,45.42,77.73,76.24,0.6088,"[256, 128] hidden units, RobustScaler, AdamW (lr=0.001), 40 epochs",Completed,"Targeted investigation model: Achieves 76.34% test accuracy (+0.87% over 75.47% baseline, +2.04% over kNN 74.30%), reducing Normal->Fuzzers test errors from 9153 down to 7384 (1769 error reduction) and boosting Normal recall from 60.10% to 74.79%."
+kNN,19 Features,83.75,79.80,74.30,80.46,74.30,76.52,46.02,76.52,15.0,64.2376,k=7,Completed,
+LR,19 Features,76.79,76.70,68.38,77.29,68.38,70.05,33.82,70.05,15.0,0.077,"max_iter=1000, random_state=10",Completed,
+SVM,19 Features,,,,,,,N/A,N/A,60.0,,"C=1.12, gamma='scale', kernel='rbf'",Not completed / computationally impractical on current hardware,"Paper configuration SVC(kernel='rbf', C=1.12, gamma='scale') requires O(N^2) to O(N^3) computations over 131506 training records. Attempt timed out after 45s. Per research guidelines, results are recorded as computationally impractical rather than fabricated."

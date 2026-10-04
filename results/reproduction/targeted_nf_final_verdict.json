@@ -1,0 +1,15 @@
+{
+  "previous_enhanced_ann_test_accuracy": 75.47,
+  "new_targeted_ann_test_accuracy": 76.34,
+  "improvement_over_previous_enhanced": 0.87,
+  "paper_ann_accuracy": 77.51,
+  "gap_to_paper": -1.17,
+  "knn_accuracy": 74.3,
+  "ann_vs_knn": 2.04,
+  "normal_recall": 74.79,
+  "fuzzers_recall": 54.85,
+  "normal_to_fuzzers_errors": 7384,
+  "fuzzers_to_normal_errors": 720,
+  "selected_configuration": "Current Enhanced ANN (RobustScaler [256, 128])",
+  "decision": "REPLACE WITH NEW MODEL"
+}

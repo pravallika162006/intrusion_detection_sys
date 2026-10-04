@@ -1,0 +1,27 @@
+{
+  "paper_ann_accuracy": 77.51,
+  "current_baseline_ann_accuracy": 73.2,
+  "current_knn_accuracy": 74.3,
+  "best_validation_ann_accuracy": 81.75,
+  "best_validation_ann_weighted_f1": 81.08,
+  "best_validation_ann_macro_f1": 54.59,
+  "final_frozen_ann_test_accuracy": 75.47,
+  "final_frozen_ann_test_precision": 81.84,
+  "final_frozen_ann_test_recall": 75.47,
+  "final_frozen_ann_test_weighted_f1": 77.04,
+  "final_frozen_ann_test_macro_f1": 45.28,
+  "improvement_over_current_ann": 2.27,
+  "improvement_over_knn": 1.17,
+  "gap_to_paper": -2.04,
+  "frozen_configuration": {
+    "preprocessing": "OneHot + RobustScaler",
+    "hidden_layers": [
+      256,
+      128
+    ],
+    "optimizer": "adamw",
+    "learning_rate": 0.001,
+    "epochs": 40,
+    "class_weighting": "No Class Weights (Baseline)"
+  }
+}

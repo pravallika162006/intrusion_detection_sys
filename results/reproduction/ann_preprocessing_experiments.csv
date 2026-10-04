@@ -1,0 +1,6 @@
+preprocessing,feature_dim,train_accuracy,validation_accuracy,validation_weighted_f1,validation_macro_f1,train_val_gap,training_time
+OneHot + MinMaxScaler,171,78.12,78.17,76.2,41.18,-0.05,36.52
+OneHot + StandardScaler,171,79.38,79.17,77.15,44.68,0.21,35.04
+OneHot + RobustScaler,171,80.05,79.85,77.35,45.5,0.2,36.89
+Direct 19-Feat + MinMaxScaler,19,77.61,77.59,74.94,39.57,0.02,35.28
+Direct 19-Feat + StandardScaler,19,78.4,78.65,76.46,42.92,-0.25,38.22

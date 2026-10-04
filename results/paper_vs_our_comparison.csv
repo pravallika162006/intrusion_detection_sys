@@ -1,0 +1,21 @@
+Model,Features,Task,Paper Accuracy,Our Accuracy,Difference,Status
+DT,42,Binary,88.13,87.52,-0.61,Close
+ANN,42,Binary,86.71,84.31,-2.4,Moderate difference
+kNN,42,Binary,83.18,84.47,1.29,Close
+LR,42,Binary,79.59,80.56,0.97,Close
+SVM,42,Binary,62.42,,,Needs investigation
+DT,19,Binary,90.85,89.17,-1.68,Moderate difference
+ANN,19,Binary,84.39,84.52,0.13,Very close
+kNN,19,Binary,84.46,86.83,2.37,Moderate difference
+LR,19,Binary,77.64,80.52,2.88,Moderate difference
+SVM,19,Binary,60.89,,,Needs investigation
+DT,42,Multiclass,66.03,70.85,4.82,Needs investigation
+ANN,42,Multiclass,75.62,73.47,-2.15,Moderate difference
+kNN,42,Multiclass,70.09,71.58,1.49,Close
+LR,42,Multiclass,65.53,69.02,3.49,Needs investigation
+SVM,42,Multiclass,61.09,,,Needs investigation
+DT,19,Multiclass,67.57,70.49,2.92,Moderate difference
+ANN,19,Multiclass,77.51,Impractical*,N/A,Missing
+kNN,19,Multiclass,72.3,74.3,2.0,Moderate difference
+LR,19,Multiclass,65.29,68.38,3.09,Needs investigation
+SVM,19,Multiclass,61.53,,,Needs investigation

@@ -68,6 +68,10 @@ class StartCaptureRequest(BaseModel):
     test_mode: bool = False
     binary_model: str = "xgboost_dt"
     multiclass_model: str = "ann"
+    threshold: float = 0.80
+
+class SetThresholdRequest(BaseModel):
+    threshold: float = Field(0.80, ge=0.10, le=0.99, description="Calibrated operating threshold (0.10 - 0.99)")
 
 class AIRecommendationRequest(BaseModel):
     flow_id: str
@@ -81,6 +85,7 @@ class AIRecommendationRequest(BaseModel):
 class AIRecommendationResponse(BaseModel):
     threat_summary: str
     explanation: str
+    why_flagged: Optional[str] = None
     severity: str
     recommended_actions: List[str]
     investigation_guidance: List[str]

@@ -1,0 +1,24 @@
+{
+  "Task": "binary",
+  "Selected_Model": "HistGradientBoosting",
+  "Is_Enhanced_Adopted": true,
+  "Rationale": "Validation performance improved over the baseline (Phase 2 Best (kNN)) by +0.61% Accuracy and +7.65% F1. Selected 'HistGradientBoosting' as the Phase 3 Enhanced Model.",
+  "Validation_Metrics": {
+    "Accuracy": 95.47,
+    "F1": 96.7,
+    "Baseline_Val_Accuracy": 94.86,
+    "Baseline_Val_F1": 89.05,
+    "Accuracy_Delta": 0.61,
+    "F1_Delta": 7.65
+  },
+  "Final_Test_Metrics": {
+    "Accuracy": 87.58,
+    "Precision": 82.44,
+    "Recall": 98.41,
+    "F1": 89.72,
+    "Macro_F1": 87.02,
+    "Weighted_F1": 87.3,
+    "Prediction_Time_s": 0.5491
+  },
+  "Model_Artifact_Path": "C:\\projects\\IDS\\models\\phase3\\binary\\enhanced_binary_model.joblib"
+}

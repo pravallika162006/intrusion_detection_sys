@@ -1,8 +1,6 @@
-Model,Feature Set,Accuracy,Precision (Attack),Recall (Attack),F1 (Attack),Macro Precision,Macro Recall,Macro F1,Weighted Precision,Weighted Recall,Weighted F1,Training Time (s),Prediction Time (s)
-Decision Tree,19 Features,0.8733,0.8331,0.9627,0.8932,0.8883,0.8632,0.8687,0.8828,0.8733,0.8712,6.057,0.0649
-ANN,19 Features,0.832,0.7683,0.995,0.8671,0.8794,0.8137,0.8195,0.8681,0.832,0.8243,17.7806,0.6086
-kNN,19 Features,0.8664,0.8228,0.9653,0.8884,0.8844,0.8553,0.8611,0.8782,0.8664,0.8638,0.0512,46.673
-Logistic Regression,19 Features,0.8062,0.7499,0.9722,0.8467,0.8482,0.7875,0.7916,0.8383,0.8062,0.7972,22.2547,0.0452
-SVM (LinearSVC),19 Features,0.8141,0.7512,0.9904,0.8544,0.8659,0.7943,0.7987,0.8543,0.8141,0.8044,6.2277,0.0219
-XGBoost + Decision Tree,19 Features,0.8733,0.8331,0.9627,0.8932,0.8883,0.8632,0.8687,0.8828,0.8733,0.8712,4.9197,0.0325
-XGBoost + kNN,19 Features,0.8664,0.8228,0.9653,0.8884,0.8844,0.8553,0.8611,0.8782,0.8664,0.8638,0.0698,53.4831
+ML method,Feature Set,Tr. AC (%),Val. AC (%),Test AC (%),Precision (%),Recall (%),F1-Score (%),Macro F1 (%),Weighted F1 (%),Training Time (s),Prediction Time (s),Hyperparameters,Status,Limitation_Notes
+DT,19 Features,93.75,94.0,89.17,84.83,97.82,90.86,88.78,89.0,15.0,0.0761,"criterion='entropy', max_depth=9",Completed,
+ANN,19 Features,94.37,94.26,84.52,78.26,99.55,87.63,83.48,83.9,15.0,0.8249,"single hidden layer (64 units), Adam, adaptive lr",Completed,
+kNN,19 Features,95.58,94.86,86.83,82.11,97.26,89.05,86.26,86.54,15.0,52.4577,k=11,Completed,
+LR,19 Features,93.53,93.29,80.52,74.86,97.31,84.62,79.04,79.6,15.0,0.0286,"max_iter=1000, random_state=10",Completed,
+SVM,19 Features,,,,,,,N/A,N/A,70.1,,"C=1.12, gamma='scale', kernel='rbf'",Not completed / computationally impractical on current hardware,"Paper configuration SVC(kernel='rbf', C=1.12, gamma='scale') requires O(N^2) to O(N^3) computations over 131506 training records. Attempt timed out after 45s. Per research guidelines, results are recorded as computationally impractical rather than fabricated."

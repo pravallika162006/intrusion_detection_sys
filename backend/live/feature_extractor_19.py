@@ -1,25 +1,26 @@
 """
-Feature Extractor for the Phase 2 selected 19 live features.
+Feature Extractor for the Sydney M. Kasongo & Yanxia Sun (2020) Table 3 exact 19 features.
 
-Live provenance:
-  sttl: observed from the forward IP packet; 0 means unavailable for an
-      incomplete/midstream flow.
-  proto: directly observed from the IP/TCP/UDP packet.
-  service: derived from ports and, secondarily, payload signatures.
-  sbytes/dbytes: derived network-layer IP packet bytes by direction.
-  smean/dmean: derived current-flow byte totals divided by packet counts.
-  dpkts: directly observed packet count in the reverse direction.
-  state: derived from observed TCP flags or UDP packet directions.
-  sloss/dloss: approximation counting overlapping retransmitted TCP payloads.
-  synack/tcprtt: TCP timing derived from a complete observed handshake;
-             zero means unavailable because the selected schema is numeric.
-  trans_depth: derived count of visible plaintext HTTP transactions.
-  ct_*: rolling historical approximation over completed live flows, limited
-      to the in-memory window and interface visibility.
-
-The preprocessor requires numeric values, so unavailable timing and TTL values
-use the same zero sentinel present in the UNSW-NB15 training representation and
-are explicitly marked as unavailable in the flow summary.
+Live feature provenance:
+  sttl: observed from the forward IP packet header TTL.
+  ct_srv_dst: historical count of connections with identical service & dst IP in rolling window.
+  sbytes: total IP packet payload + header bytes in forward direction.
+  smean: forward byte total divided by forward packet count.
+  proto: observed IP/transport layer protocol string (tcp, udp, etc.).
+  ct_state_ttl: historical count of connections with same state and sttl in rolling window.
+  sloss: approximated count of retransmitted/overlapping TCP packets from source.
+  synack: TCP handshake SYN-ACK timing difference (or 0.0 if midstream/non-TCP).
+  ct_dst_src_ltm: historical count of connections with same destination and source IP in window.
+  dmean: reverse byte total divided by reverse packet count.
+  ct_srv_src: historical count of connections with same service and source IP in window.
+  service: application layer protocol resolved from port numbers and payload inspection.
+  ct_dst_sport_ltm: historical count of connections with same destination IP and source port.
+  dbytes: total IP bytes received from destination.
+  dloss: approximated count of retransmitted/overlapping TCP packets from destination.
+  state: state string derived from TCP flags (FIN, CON, RST) or UDP flow state.
+  tcprtt: TCP full round trip time (SYN to ACK).
+  ct_src_dport_ltm: historical count of connections with same source IP and destination port.
+  rate: packet throughput rate = (spkts + dpkts) / max(0.001, dur).
 """
 
 from typing import Dict, Any
@@ -67,14 +68,52 @@ def resolve_service(dst_port: int, src_port: int, payload: bytes, proto: str = "
     return "-"
 
 
+def align_sttl_for_benchmark(raw_ttl: int, align_mode: bool = True) -> int:
+    """
+    Aligns observed OS Time-To-Live (TTL) to the UNSW-NB15 benchmark reference frame.
+
+    In the UNSW-NB15 benchmark:
+      - Legitimate testbed hosts were configured with initial TTL = 32 (reaching the monitor as 31).
+      - Attack injection tools were configured with raw sockets / initial TTL = 255 (reaching monitor as 254).
+      - Zero records exist in the benchmark dataset with TTL between 65 and 128 (0.0% of data).
+
+    In real networks:
+      - Windows client hosts initialize TTL = 128.
+      - Linux / Android / macOS hosts initialize TTL = 64.
+      - Raw sockets and network scanners initialize TTL = 255.
+
+    Without alignment, Windows packets (TTL=128) and Linux LAN packets (TTL=64) fall
+    above the trained tree threshold (sttl > 61.0), triggering false-positive alerts
+    purely due to operating system default differences rather than malicious activity.
+    """
+    if not align_mode or raw_ttl <= 0:
+        return max(0, int(raw_ttl))
+
+    if raw_ttl <= 32:
+        # Already matches benchmark reference frame (e.g. UNSW-NB15 normal range)
+        return int(raw_ttl)
+    elif raw_ttl <= 64:
+        # Linux / Android / macOS (initial TTL 64)
+        hops = max(0, 64 - raw_ttl)
+        return max(1, 31 - hops)
+    elif raw_ttl <= 128:
+        # Windows client OS (initial TTL 128)
+        hops = max(0, 128 - raw_ttl)
+        return max(1, 31 - hops)
+    else:
+        # Raw socket / attack tools / routers (initial TTL 255)
+        hops = max(0, 255 - raw_ttl)
+        return max(62, 254 - hops)
+
+
 def extract_19_features(
     flow_data: Dict[str, Any],
-    rolling_tracker: RollingStatsTracker
+    rolling_tracker: RollingStatsTracker,
+    align_ttl: bool = True,
 ) -> pd.DataFrame:
     """
-    Extracts the 19 Phase 2 features from a flow summary dictionary,
-    queries rolling_tracker for historical ct_* features,
-    and returns a 1-row DataFrame matching SELECTED_19_FEATURES ordering.
+    Extracts the exact 19 features matching Paper Table 3 from a flow summary dictionary,
+    queries rolling_tracker for ct_* features, and returns a 1-row DataFrame.
     """
     src_ip = flow_data.get("src_ip", "0.0.0.0")
     dst_ip = flow_data.get("dst_ip", "0.0.0.0")
@@ -86,8 +125,11 @@ def extract_19_features(
     dpkts = flow_data.get("dpkts", 0)
     sbytes = flow_data.get("sbytes", 0)
     dbytes = flow_data.get("dbytes", 0)
+    dur = float(flow_data.get("dur", flow_data.get("duration", 0.0)))
 
-    sttl = flow_data.get("sttl", 0)
+    raw_sttl = int(flow_data.get("sttl", 64))
+    sttl = align_sttl_for_benchmark(raw_sttl, align_mode=align_ttl)
+    flow_data["aligned_sttl"] = int(sttl)  # Consistent TTL across extractor & rolling stats
     state = flow_data.get("state", "CON")
     payload = flow_data.get("first_payload", b"")
 
@@ -102,7 +144,13 @@ def extract_19_features(
     tcprtt_value = flow_data.get("tcprtt")
     synack = float(synack_value) if synack_value is not None else 0.0
     tcprtt = float(tcprtt_value) if tcprtt_value is not None else 0.0
-    trans_depth = flow_data.get("trans_depth", 0)
+
+    # Rate: packet throughput rate (packets per second)
+    # In UNSW-NB15 benchmark, zero-duration flows evaluate to rate = 0.0
+    if dur <= 0.0:
+        rate = 0.0
+    else:
+        rate = min(1000000.0, float((spkts + dpkts) / dur))
 
     # Query rolling stats tracker for ct_* features
     ct_stats = rolling_tracker.get_ct_stats(
@@ -117,24 +165,24 @@ def extract_19_features(
 
     feature_dict = {
         "sttl": int(sttl),
-        "proto": str(proto),
         "ct_srv_dst": int(ct_stats["ct_srv_dst"]),
         "sbytes": int(sbytes),
-        "service": str(service),
         "smean": float(smean),
-        "ct_dst_sport_ltm": int(ct_stats["ct_dst_sport_ltm"]),
-        "state": str(state),
-        "dpkts": int(dpkts),
+        "proto": str(proto),
+        "ct_state_ttl": int(ct_stats["ct_state_ttl"]),
         "sloss": int(sloss),
         "synack": float(synack),
         "ct_dst_src_ltm": int(ct_stats["ct_dst_src_ltm"]),
         "dmean": float(dmean),
-        "trans_depth": int(trans_depth),
-        "ct_state_ttl": int(ct_stats["ct_state_ttl"]),
-        "dbytes": int(dbytes),
         "ct_srv_src": int(ct_stats["ct_srv_src"]),
+        "service": str(service),
+        "ct_dst_sport_ltm": int(ct_stats["ct_dst_sport_ltm"]),
+        "dbytes": int(dbytes),
         "dloss": int(dloss),
+        "state": str(state),
         "tcprtt": float(tcprtt),
+        "ct_src_dport_ltm": int(ct_stats.get("ct_src_dport_ltm", 1)),
+        "rate": float(rate),
     }
 
     # Construct DataFrame in exact SELECTED_19_FEATURES ordering

@@ -1,0 +1,6 @@
+Model,Type,Val_Accuracy,Val_Precision,Val_Recall,Val_F1,Val_Macro_F1,Val_Weighted_F1,Train_Time_s,Prediction_Time_s
+Ensemble (Soft Voting: RF + HistGB),Ensemble,95.46,95.12,98.37,96.72,94.67,95.41,65.25,0.6957
+Ensemble (Stacking: DT + RF + XGBoost -> LR),Ensemble,95.23,96.06,96.97,96.52,94.49,95.22,26.75,0.459
+Ensemble (Soft Voting: DT + RF + XGBoost),Ensemble,95.21,94.65,98.53,96.55,94.35,95.15,71.21,1.5916
+Ensemble (Soft Voting: RF + XGBoost),Ensemble,95.2,94.71,98.45,96.55,94.35,95.15,122.18,11.8032
+Ensemble (Hard Voting: DT + kNN + RF),Ensemble,94.83,93.66,99.12,96.31,93.84,94.74,30.65,39.1471

@@ -1,0 +1,5 @@
+sttl_representation,validation_accuracy,validation_weighted_f1,validation_macro_f1,normal_recall,fuzzers_recall,normal_to_fuzzers_errors,fuzzers_to_normal_errors,train_accuracy,train_val_gap
+Exp 4A: Baseline RobustScaler,82.01,80.87,54.18,90.47,74.66,1123,641,82.41,0.4
+Exp 4B: Clipped sttl (1% - 99% train bounds),81.72,80.56,53.56,89.77,74.13,1138,588,82.27,0.55
+Exp 4C: Quantile-Transformed sttl,82.07,80.71,54.31,90.42,74.4,1121,656,82.36,0.29
+Exp 4D: Dual sttl (Raw + Quantile),81.81,80.72,53.98,90.4,74.2,1127,655,82.77,0.96

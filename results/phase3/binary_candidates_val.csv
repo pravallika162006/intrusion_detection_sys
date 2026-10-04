@@ -1,0 +1,9 @@
+Model,Type,Val_Accuracy,Val_Precision,Val_Recall,Val_F1,Val_Macro_F1,Val_Weighted_F1,Train_Time_s,Prediction_Time_s
+HistGradientBoosting,Individual Candidate,95.47,95.88,97.54,96.7,94.74,95.45,7.2,0.2323
+XGBoost Classifier,Individual Candidate,95.33,95.56,97.67,96.6,94.55,95.29,1.89,0.032
+Random Forest,Individual Candidate,94.74,93.5,99.17,96.25,93.73,94.64,5.68,0.2017
+kNN,Individual Candidate,94.73,95.85,96.43,96.14,93.91,94.72,0.05,20.3535
+Decision Tree,Individual Candidate,94.15,92.75,99.15,95.84,92.98,94.01,2.16,0.0237
+ANN,Individual Candidate,94.09,93.35,98.32,95.77,92.99,93.99,15.09,0.205
+Extra Trees,Individual Candidate,93.77,91.69,99.9,95.62,92.41,93.57,9.63,0.1528
+Logistic Regression,Individual Candidate,93.29,92.02,98.7,95.24,91.93,93.13,4.97,0.026

@@ -32,6 +32,8 @@ from backend.config import (
     MULTICLASS_MODELS_DIR,
     PHASE2_BINARY_MODELS_DIR,
     PHASE2_MULTICLASS_MODELS_DIR,
+    PHASE3_BINARY_MODELS_DIR,
+    PHASE3_MULTICLASS_MODELS_DIR,
 )
 from backend.app.schemas import (
     DatasetValidationResponse,
@@ -217,9 +219,26 @@ def predict_dataset(
             detail=f"Error transforming dataset with preprocessor: {str(e)}"
         )
 
-    # Load Model
-    model_path_joblib = models_dir / f"{model_name}.joblib"
-    model_path_keras = models_dir / f"{model_name}.keras"
+    # Load Model with alias handling
+    alias_map = {
+        "xgboost_dt": "decision_tree",
+        "xgboost_knn": "knn",
+        "dt": "decision_tree",
+        "lr": "logistic_regression",
+        "linear_regression": "logistic_regression",
+    }
+    normalized_model = alias_map.get(model_name.lower().strip(), model_name.lower().strip())
+
+    if normalized_model in ["enhanced", "phase3", "enhanced_binary_model", "enhanced_multiclass_model"]:
+        if prediction_task == "binary":
+            model_path_joblib = PHASE3_BINARY_MODELS_DIR / "enhanced_binary_model.joblib"
+            model_path_keras = PHASE3_BINARY_MODELS_DIR / "enhanced_binary_model.keras"
+        else:
+            model_path_joblib = PHASE3_MULTICLASS_MODELS_DIR / "enhanced_multiclass_model.joblib"
+            model_path_keras = PHASE3_MULTICLASS_MODELS_DIR / "enhanced_multiclass_model.keras"
+    else:
+        model_path_joblib = models_dir / f"{normalized_model}.joblib"
+        model_path_keras = models_dir / f"{normalized_model}.keras"
 
     if model_path_joblib.exists():
         model = joblib.load(model_path_joblib)
@@ -231,7 +250,7 @@ def predict_dataset(
         available = [p.stem for p in models_dir.glob("*")]
         raise HTTPException(
             status_code=404,
-            detail=f"Model '{model_name}' not found in {models_dir}. Available: {available}"
+            detail=f"Model '{model_name}' (resolved: '{normalized_model}') not found. Available: {available}"
         )
 
     # Predict
@@ -279,7 +298,7 @@ def predict_dataset(
             pred_labels = [str(p) for p in preds]
 
         cat_counts = pd.Series(pred_labels).value_counts().to_dict()
-        normal_count = int(cat_counts.get("Normal", cat_counts.get(0, 0)))
+        normal_count = int(cat_counts.get("Normal", cat_counts.get("0", 0)))
         attack_count = total_records - normal_count
         attack_pct = round((attack_count / total_records) * 100, 2)
         attack_categories = {str(k): int(v) for k, v in cat_counts.items()}
@@ -337,13 +356,19 @@ def predict_dataset(
     sample_records = []
     max_samples = min(20, total_records)
     for i in range(max_samples):
+        if prediction_task == "binary":
+            is_attack = (preds[i] == 1)
+            cat_name = "Attack" if is_attack else "Normal"
+        else:
+            cat_name = str(label_encoder.classes_[preds[i]]) if label_encoder else str(preds[i])
+            is_attack = (cat_name.lower() != "normal")
+
         rec = {
             "index": i + 1,
-            "prediction": "Attack" if (preds[i] == 1 if prediction_task == "binary" else preds[i] != 0) else "Normal",
+            "prediction": "Attack" if is_attack else "Normal",
+            "attack_category": cat_name,
             "pred_value": int(preds[i]),
         }
-        if prediction_task == "multiclass" and label_encoder:
-            rec["attack_category"] = str(label_encoder.classes_[preds[i]])
         if confidences:
             rec["confidence"] = round(float(confidences[i]), 4)
         sample_records.append(rec)

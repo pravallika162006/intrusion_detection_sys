@@ -1,6 +1,7 @@
 """
 Feature Importance Visualizer for Phase 2.
-Generates bar charts for all 42 ranked features and the selected top 19 features.
+Generates bar charts for the ranked features and the selected top 19 features
+matching Sydney M. Kasongo & Yanxia Sun (2020) Table 3.
 """
 
 from pathlib import Path
@@ -8,13 +9,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
-from backend.config import RESULTS_DIR
+from backend.config import RESULTS_DIR, PHASE2_RESULTS_DIR
 from backend.utils.logger import setup_logger
 
 logger = setup_logger("Visualizer")
 
-PLOTS_DIR = RESULTS_DIR / "phase2" / "plots"
+PLOTS_DIR = PHASE2_RESULTS_DIR / "plots"
 PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+
 
 def generate_feature_importance_plots(df_ranking: pd.DataFrame, top_k: int = 19) -> None:
     """
@@ -25,34 +27,37 @@ def generate_feature_importance_plots(df_ranking: pd.DataFrame, top_k: int = 19)
     logger.info("Generating feature importance visualizations...")
     sns.set_theme(style="whitegrid")
 
-    # Chart 1: All 42 Features Ranked
+    score_col = "Paper_Importance_Score" if "Paper_Importance_Score" in df_ranking.columns else (
+        "Importance_Score" if "Importance_Score" in df_ranking.columns else "Our_Measured_Score"
+    )
+
+    # Chart 1: All Features Ranked
     fig, ax = plt.subplots(figsize=(12, 14))
-    
-    # Assign colors: Top K highlighted in vibrant navy/teal, remainder in muted gray
-    colors = ["#1f77b4" if r <= top_k else "#aec7e8" for r in df_ranking["Rank"]]
+    colors = ["#0284c7" if r <= top_k else "#94a3b8" for r in df_ranking["Rank"]]
     
     sns.barplot(
         data=df_ranking,
-        x="Importance_Score",
+        x=score_col,
         y="Feature",
         palette=colors,
         ax=ax,
     )
     
-    ax.set_title(f"UNSW-NB15 XGBoost Feature Importance (All 42 Features, Top {top_k} Highlighted)", fontsize=14, fontweight="bold", pad=15)
-    ax.set_xlabel("Normalized Feature Importance Score", fontsize=12, labelpad=10)
-    ax.set_ylabel("Original Input Features", fontsize=12, labelpad=10)
+    ax.set_title(f"UNSW-NB15 XGBoost Feature Importance (Top {top_k} Features Highlighted)", fontsize=14, fontweight="bold", pad=15)
+    ax.set_xlabel("Feature Importance Score (Kasongo & Sun, 2020 Table 3)", fontsize=12, labelpad=10)
+    ax.set_ylabel("UNSW-NB15 Features", fontsize=12, labelpad=10)
     
-    # Add rank labels inside/beside bars
     for index, row in df_ranking.iterrows():
-        ax.text(
-            row["Importance_Score"] + 0.001,
-            index,
-            f"#{row['Rank']} ({row['Importance_Score']:.4f})",
-            va="center",
-            fontsize=9,
-            color="#333333",
-        )
+        val = row[score_col]
+        if val > 0:
+            ax.text(
+                val + 0.001,
+                index,
+                f"#{row['Rank']} ({val:.6f})",
+                va="center",
+                fontsize=8,
+                color="#0f172a",
+            )
 
     plt.tight_layout()
     plot_42_path = PLOTS_DIR / "xgboost_feature_importance_42.png"
@@ -65,24 +70,25 @@ def generate_feature_importance_plots(df_ranking: pd.DataFrame, top_k: int = 19)
     
     sns.barplot(
         data=df_top19,
-        x="Importance_Score",
+        x=score_col,
         y="Feature",
-        palette="viridis",
+        palette="crest",
         ax=ax,
     )
     
-    ax.set_title(f"Top {top_k} XGBoost-Selected Features for Phase 2 Reduced Pipeline", fontsize=13, fontweight="bold", pad=15)
-    ax.set_xlabel("Normalized Feature Importance Score", fontsize=11, labelpad=10)
+    ax.set_title(f"Top {top_k} XGBoost Selected Features (Journal of Big Data 2020 Table 3)", fontsize=13, fontweight="bold", pad=15)
+    ax.set_xlabel("Importance Score", fontsize=11, labelpad=10)
     ax.set_ylabel("Selected Features", fontsize=11, labelpad=10)
 
     for index, row in df_top19.iterrows():
+        val = row[score_col]
         ax.text(
-            row["Importance_Score"] + 0.001,
+            val + 0.001,
             index,
-            f"{row['Importance_Score']:.4f}",
+            f"{val:.6f}",
             va="center",
             fontsize=9,
-            color="#000000",
+            color="#0f172a",
         )
 
     plt.tight_layout()

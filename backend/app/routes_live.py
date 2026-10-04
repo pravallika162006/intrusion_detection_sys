@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks, WebSocket, WebSoc
 from backend.app.schemas import (
     NetworkInterfaceInfo,
     StartCaptureRequest,
+    SetThresholdRequest,
     AIRecommendationRequest,
     AIRecommendationResponse,
 )
@@ -65,6 +66,7 @@ async def start_monitoring(req: StartCaptureRequest):
             interface_name=req.interface_name,
             test_mode=req.test_mode,
             event_callback=_ws_event_callback,
+            threshold=req.threshold,
         )
         mode_str = "Controlled TEST MODE" if req.test_mode else f"Live Capture ({req.interface_name})"
         return {
@@ -72,18 +74,45 @@ async def start_monitoring(req: StartCaptureRequest):
             "message": f"Network monitoring started in {mode_str}.",
             "interface": req.interface_name,
             "test_mode": req.test_mode,
+            "threshold": req.threshold,
         }
     except Exception as e:
         logger.error(f"Failed to start monitoring: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.post("/threshold")
+def set_monitoring_threshold(req: SetThresholdRequest):
+    """Dynamically updates the operating decision threshold."""
+    try:
+        capturer.set_threshold(req.threshold)
+        return {
+            "status": "SUCCESS",
+            "threshold": capturer.decision_threshold,
+            "message": f"Operating decision threshold set to {capturer.decision_threshold:.2f}",
+        }
+    except Exception as e:
+        logger.error(f"Error setting threshold: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("/stop")
 def stop_monitoring():
-    """Stops live network monitoring."""
+    """Stops live network monitoring and returns final session summary."""
     try:
+        summary = {
+            "status": "STOPPED",
+            "message": "Network monitoring stopped.",
+            "interface_name": capturer.interface_name,
+            "test_mode": capturer.test_mode,
+            "threshold": capturer.decision_threshold,
+            "packet_count": capturer.packet_count,
+            "flow_count": capturer.flow_count,
+            "normal_count": capturer.normal_count,
+            "attack_count": capturer.attack_count,
+        }
         capturer.stop_capture()
-        return {"status": "STOPPED", "message": "Network monitoring stopped."}
+        return summary
     except Exception as e:
         logger.error(f"Error stopping monitoring: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -96,6 +125,7 @@ def get_monitoring_status():
         "is_running": capturer.is_running,
         "test_mode": capturer.test_mode,
         "interface": capturer.interface_name,
+        "threshold": capturer.decision_threshold,
         "packet_count": capturer.packet_count,
         "flow_count": capturer.flow_count,
         "normal_count": capturer.normal_count,

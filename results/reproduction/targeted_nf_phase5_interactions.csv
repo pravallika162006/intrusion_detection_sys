@@ -1,0 +1,6 @@
+interaction_scheme,validation_accuracy,validation_weighted_f1,validation_macro_f1,normal_recall,fuzzers_recall,normal_to_fuzzers_errors,fuzzers_to_normal_errors
+Exp 5A: Baseline (No Interactions),81.59,80.43,53.64,89.79,74.26,1146,587
+Exp 5B: Add sttl * ct_state_ttl,81.79,80.67,54.08,89.8,75.25,1194,595
+Exp 5C: Add sttl * rate,81.76,80.41,53.5,90.17,73.69,1134,633
+Exp 5D: Add ct_state_ttl * rate,81.63,80.51,53.93,88.84,77.06,1311,487
+Exp 5E: Add All 3 Interactions,81.72,80.88,54.35,89.91,75.6,1178,572

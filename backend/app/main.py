@@ -11,15 +11,17 @@ from fastapi.responses import FileResponse
 
 from backend.app.routes_dataset import router as dataset_router
 from backend.app.routes_live import router as live_router
+from backend.app.routes_reporting import router as reporting_router
+from backend.app.routes_performances import router as performances_router
 from backend.config import BASE_DIR
 from backend.utils.logger import setup_logger
 
 logger = setup_logger("FastAPIApp")
 
 app = FastAPI(
-    title="Intrusion Detection System (IDS) - Phase 3",
-    description="Dual-Dashboard IDS supporting Dataset Analysis & Real-Time Live Network Monitoring with AI Security Agent.",
-    version="3.0.0",
+    title="Intrusion Detection System (IDS) — Academic & Live Suite",
+    description="Academic Performance Analysis (Kasongo & Sun, 2020 reproduction + Phase 3 enhancement), Dataset Analysis, Real-Time Live Monitoring, AI Security Agent, and Dynamic PDF Reporting.",
+    version="4.5.0",
 )
 
 # CORS Configuration for local browser access
@@ -33,7 +35,9 @@ app.add_middleware(
 
 # Register Routers
 app.include_router(dataset_router)
+app.include_router(performances_router)
 app.include_router(live_router)
+app.include_router(reporting_router)
 
 # Mount Frontend Static Directory if present
 frontend_dir = BASE_DIR / "frontend"

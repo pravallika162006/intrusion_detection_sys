@@ -1,0 +1,4 @@
+weighting_scheme,train_accuracy,validation_accuracy,validation_weighted_f1,validation_macro_f1,train_val_gap,training_time
+No Class Weights (Baseline),82.66,81.91,81.02,54.5,0.75,105.53
+Balanced Class Weights,70.68,69.92,72.54,48.93,0.76,110.63
+Mild Class Weights (sqrt),80.03,78.97,80.31,57.54,1.06,104.69

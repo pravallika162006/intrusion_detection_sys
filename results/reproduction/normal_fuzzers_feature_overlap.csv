@@ -1,0 +1,20 @@
+Feature,Type,Normal Median,Fuzzers Median,Normal Mean,Fuzzers Mean,Normal Std,Fuzzers Std,Normal Q25,Normal Q75,Fuzzers Q25,Fuzzers Q75,Distribution Overlap (%),Separation Quality
+sttl,Numerical,31.0,254.0,75.7191,253.3165,90.1307,11.9784,31.0,31.0,254.0,254.0,20.5,High
+ct_state_ttl,Numerical,0.0,1.0,0.4961,1.4258,1.001,0.7933,0.0,1.0,1.0,2.0,27.14,High
+dmean,Numerical,89.0,44.0,253.7793,39.1882,324.3003,45.9355,53.0,482.0,0.0,55.0,46.75,Moderate
+tcprtt,Numerical,0.0006,0.1128,0.032,0.1011,0.0879,0.088,0.0,0.0008,0.0,0.1651,52.74,Moderate
+synack,Numerical,0.0005,0.0576,0.0174,0.0533,0.0502,0.0484,0.0,0.0006,0.0,0.0868,53.21,Moderate
+smean,Numerical,73.0,89.0,141.098,245.4026,189.2736,326.0578,59.0,130.0,57.0,252.0,63.6,Low
+rate,Numerical,1359.8572,32.1113,13829.307,66823.458,68592.0122,144771.0378,30.7314,3157.4749,18.9139,111111.1072,73.94,Low
+service,Categorical,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,74.04,Low
+dloss,Numerical,2.0,1.0,14.2735,1.1317,49.2909,2.5818,0.0,8.0,0.0,2.0,76.19,Low
+state,Categorical,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,76.61,Low
+dbytes,Numerical,1120.0,268.0,31158.0255,492.7905,140327.0055,6043.1226,178.0,10168.0,0.0,682.0,82.09,Low
+ct_src_dport_ltm,Numerical,1.0,1.0,1.7931,2.0354,2.7508,2.1608,1.0,2.0,1.0,2.0,82.2,Low
+ct_dst_src_ltm,Numerical,2.0,3.0,3.8867,4.8036,5.4426,5.5906,1.0,4.0,2.0,5.0,85.61,Low
+ct_srv_src,Numerical,4.0,4.0,5.7453,5.5821,5.949,5.7151,2.0,7.0,2.0,7.0,87.65,Low
+ct_srv_dst,Numerical,4.0,3.0,5.5329,4.9437,5.8215,5.5261,2.0,7.0,2.0,6.0,87.95,Low
+proto,Categorical,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,89.62,Low
+ct_dst_sport_ltm,Numerical,1.0,1.0,1.1952,1.3259,2.05,0.9999,1.0,1.0,1.0,1.0,90.34,Low
+sloss,Numerical,3.0,2.0,5.0365,4.0105,7.9506,17.8079,0.0,7.0,0.0,3.0,94.76,Low
+sbytes,Numerical,1470.0,914.0,4164.3383,7264.5678,11657.1548,47226.2107,424.0,3598.0,534.0,1542.0,95.75,Low

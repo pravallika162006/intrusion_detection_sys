@@ -1,0 +1,10 @@
+{
+  "normal_correctly_classified_mean_conf": 95.88,
+  "normal_correctly_classified_median_conf": 100.0,
+  "normal_to_fuzzers_error_mean_predicted_conf": 66.69,
+  "normal_to_fuzzers_error_median_predicted_conf": 65.49,
+  "normal_to_fuzzers_error_mean_true_class_conf": 29.51,
+  "normal_to_fuzzers_error_mean_margin": 37.18,
+  "fuzzers_correctly_classified_mean_conf": 77.53,
+  "fuzzers_to_normal_error_mean_predicted_conf": 61.45
+}

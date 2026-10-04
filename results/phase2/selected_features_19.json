@@ -1,27 +1,7 @@
 {
-  "top_k_count": 19,
-  "selected_features_19": [
-    "sttl",
-    "proto",
-    "ct_srv_dst",
-    "sbytes",
-    "service",
-    "smean",
-    "ct_dst_sport_ltm",
-    "state",
-    "dpkts",
-    "sloss",
-    "synack",
-    "ct_dst_src_ltm",
-    "dmean",
-    "trans_depth",
-    "ct_state_ttl",
-    "dbytes",
-    "ct_srv_src",
-    "dloss",
-    "tcprtt"
-  ],
-  "planned_features_19": [
+  "description": "Sydney M. Kasongo & Yanxia Sun (2020) Table 3 exact 19 selected features",
+  "feature_count": 19,
+  "selected_19_features": [
     "sttl",
     "ct_srv_dst",
     "sbytes",
@@ -42,33 +22,29 @@
     "ct_src_dport_ltm",
     "rate"
   ],
-  "common_features_count": 17,
-  "common_features": [
-    "ct_dst_sport_ltm",
-    "ct_dst_src_ltm",
-    "ct_srv_dst",
-    "ct_srv_src",
-    "ct_state_ttl",
-    "dbytes",
-    "dloss",
-    "dmean",
-    "proto",
-    "sbytes",
-    "service",
-    "sloss",
-    "smean",
-    "state",
-    "sttl",
-    "synack",
-    "tcprtt"
-  ],
-  "selected_not_in_planned": [
-    "dpkts",
-    "trans_depth"
-  ],
-  "planned_not_in_selected": [
-    "ct_src_dport_ltm",
-    "rate"
-  ],
-  "overlap_percentage": 89.47
+  "paper_importance_scores": {
+    "sttl": 0.803374,
+    "ct_srv_dst": 0.039387,
+    "sbytes": 0.037377,
+    "smean": 0.019878,
+    "proto": 0.018848,
+    "ct_state_ttl": 0.016783,
+    "sloss": 0.012008,
+    "synack": 0.010125,
+    "ct_dst_src_ltm": 0.007203,
+    "dmean": 0.007134,
+    "ct_srv_src": 0.006745,
+    "service": 0.006305,
+    "ct_dst_sport_ltm": 0.003717,
+    "dbytes": 0.002706,
+    "dloss": 0.001793,
+    "state": 0.001548,
+    "tcprtt": 0.001224,
+    "ct_src_dport_ltm": 0.000526,
+    "rate": 0.000503
+  },
+  "top_feature": "sttl (0.803374)",
+  "lowest_selected_feature": "rate (0.000503)",
+  "categorical_count": 3,
+  "numerical_count": 16
 }

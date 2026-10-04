@@ -1,0 +1,3 @@
+architecture,validation_accuracy,validation_weighted_f1,normal_recall,fuzzers_recall,normal_to_fuzzers_errors
+Single-Stage 10-Class ANN (Baseline),81.68,80.75,89.73,74.97,1168
+Two-Stage Hierarchical ANN (Normal/Atk -> 9 Categories),81.5,79.88,88.59,73.3,1261

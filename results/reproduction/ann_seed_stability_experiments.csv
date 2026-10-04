@@ -1,0 +1,6 @@
+seed,train_accuracy,validation_accuracy,validation_weighted_f1,validation_macro_f1,training_time
+42,82.87,81.98,81.11,55.01,95.06
+10,82.56,81.83,80.42,53.29,95.13
+20,82.65,81.96,80.83,54.7,95.88
+30,82.82,82.18,80.7,53.89,93.65
+50,81.63,81.52,80.67,54.39,93.95

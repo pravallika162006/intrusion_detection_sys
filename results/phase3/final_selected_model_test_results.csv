@@ -1,0 +1,3 @@
+Task,Selected Model,Status,Val Accuracy (%),Test Accuracy (%),Precision (%),Recall (%),F1-Score (%),Macro F1 (%),Weighted F1 (%),Selection Rationale
+Binary,HistGradientBoosting,Adopted Enhanced Model,95.47,87.58,82.44,98.41,89.72,87.02,87.3,Validation performance improved over the baseline (Phase 2 Best (kNN)) by +0.61% Accuracy and +7.65% F1. Selected 'HistGradientBoosting' as the Phase 3 Enhanced Model.
+Multiclass,Ensemble (Soft Voting: RF + XGBoost),Adopted Enhanced Model,82.62,77.17,63.03,50.63,48.12,48.12,77.53,Validation performance improved over the baseline (Phase 2 Best (ANN)) by +2.08% Accuracy and +14.95% F1. Selected 'Ensemble (Soft Voting: RF + XGBoost)' as the Phase 3 Enhanced Model.

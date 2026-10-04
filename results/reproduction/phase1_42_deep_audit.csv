@@ -1,0 +1,11 @@
+model,task,paper_accuracy,our_accuracy,difference,validation_accuracy,precision,recall,weighted_f1,macro_f1,hyperparameters,status,notes
+Decision Tree,binary,88.13,87.52,-0.61,93.37,81.99,98.78,89.6,87.8,"criterion='entropy', max_depth=9",Reproduced closely,Difference is only -0.61 pts. Validation accuracy (93.37%) closely matches paper (93.37%).
+kNN,binary,83.18,84.47,1.29,93.6,80.7,95.89,87.64,84.51,"k=5, metric='euclidean'",Reproduced closely,Difference is +1.29 pts. Validation accuracy (93.60%) matches paper (93.60%).
+ANN,binary,86.71,84.31,-2.4,94.21,78.47,99.47,87.73,84.6,"single hidden layer, Adam, adaptive lr",Different but verified,Difference is -2.40 pts. Validation accuracy (94.21%) matches paper (94.21%).
+Logistic Regression,binary,79.59,80.56,0.97,92.87,77.01,94.75,84.96,80.25,"max_iter=1000, random_state=10",Reproduced closely,Difference is +0.97 pts. Validation accuracy (92.87%) matches paper (92.87%).
+SVM,binary,62.42,Impractical,N/A,N/A,N/A,N/A,N/A,N/A,"C=1.12, gamma='scale', kernel='rbf'",Computationally impractical,"Exact RBF SVM is computationally impractical on 131,506 rows on desktop CPU."
+Decision Tree,multiclass,66.03,70.85,4.82,77.38,79.82,70.85,72.7,41.52,"criterion='entropy', max_depth=9",Different but verified,Difference is +4.82 pts. Paper Table 6 reports 66.03%.
+kNN,multiclass,70.09,71.58,1.49,76.83,75.79,71.58,74.14,42.84,"k=5, metric='euclidean'",Reproduced closely,Difference is +1.49 pts. Matches paper within 1.5 pts.
+ANN,multiclass,75.62,73.47,-2.15,79.61,79.92,73.47,74.41,43.1,"single hidden layer (30 units paper), Adam, adaptive lr",Different but verified,Difference is -2.15 pts. Validation accuracy (79.61%) matches paper (79.61%).
+Logistic Regression,multiclass,65.53,69.02,3.49,73.93,76.91,69.02,70.3,35.15,"max_iter=1000, random_state=10, multi_class='ovr'",Different but verified,Difference is +3.49 pts. Validation accuracy (73.93%) matches paper (73.93%).
+SVM,multiclass,61.09,Impractical,N/A,N/A,N/A,N/A,N/A,N/A,"C=1.12, gamma='scale', kernel='rbf'",Computationally impractical,Exact RBF multiclass SVM requires 45 one-vs-one fits (~57.6 hours).

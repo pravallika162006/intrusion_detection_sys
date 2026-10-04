@@ -1,7 +1,14 @@
-/* Custom styles for IDS Phase 3 Web Dashboard */
+/* Custom styles for IDS Academic & Real-Time Web Suite */
+
+:root {
+    --bg-dark: #020617;
+    --card-bg: rgba(15, 23, 42, 0.85);
+    --border-color: rgba(51, 65, 85, 0.6);
+}
 
 body {
     background-color: #020617;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 ::-webkit-scrollbar {
@@ -19,8 +26,28 @@ body {
     background: #334155;
 }
 
+.glass-card {
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.glass-card-hover:hover {
+    border-color: rgba(14, 165, 233, 0.4);
+    box-shadow: 0 10px 25px -5px rgba(14, 165, 233, 0.08);
+}
+
 .glow-cyan {
-    box-shadow: 0 0 20px rgba(6, 182, 212, 0.15);
+    box-shadow: 0 0 25px rgba(6, 182, 212, 0.18);
+}
+
+.glow-indigo {
+    box-shadow: 0 0 25px rgba(99, 102, 241, 0.18);
+}
+
+.glow-rose {
+    box-shadow: 0 0 25px rgba(244, 63, 94, 0.18);
 }
 
 .pulse-dot {
@@ -30,4 +57,63 @@ body {
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: .4; }
+}
+
+canvas {
+    max-width: 100%;
+}
+
+.badge-tag {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.tab-active {
+    background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px 0 rgba(2, 132, 199, 0.35);
+}
+
+.tab-inactive {
+    color: #94a3b8;
+}
+.tab-inactive:hover {
+    color: #ffffff;
+    background-color: rgba(30, 41, 59, 0.6);
+}
+
+/* Custom Table Styles */
+.performance-table th {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    padding: 10px 12px;
+    border-bottom: 1px solid #1e293b;
+    background-color: rgba(15, 23, 42, 0.95);
+}
+
+.performance-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #1e293b;
+    font-size: 12px;
+}
+
+.performance-table tr:hover {
+    background-color: rgba(30, 41, 59, 0.4);
+}
+
+.diff-positive {
+    color: #34d399;
+    font-weight: 600;
+}
+
+.diff-negative {
+    color: #f87171;
+    font-weight: 600;
 }

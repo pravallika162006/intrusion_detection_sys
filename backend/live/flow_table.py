@@ -17,6 +17,20 @@ logger = setup_logger("FlowTable")
 class FlowRecord:
     """Represents a single active network flow state."""
 
+    COMMON_SERVICE_PORTS = {
+        80, 443, 8080, 8443, 8000, 8888, 3000, 5000,  # Web & common alternate web ports
+        53,                                           # DNS
+        21, 20,                                       # FTP
+        22, 23,                                       # SSH, Telnet
+        25, 465, 587,                                 # SMTP
+        110, 995, 143, 993,                           # POP3, IMAP
+        3306, 5432, 27017, 6379,                      # Databases
+        161, 162,                                     # SNMP
+        67, 68,                                       # DHCP
+        123,                                          # NTP
+        1812, 1813,                                   # RADIUS
+    }
+
     def __init__(self, key: FlowKey, first_packet_time: float, sttl: int):
         self.key = key
         self.forward_ip = key.src_ip
@@ -51,6 +65,16 @@ class FlowRecord:
         self.trans_depth = 0
         self.first_payload = b""
 
+        # Teardown tracking & trailing ACK absorption
+        self.fin_packets = 0
+        self.closing = False
+        self.close_time: Optional[float] = None
+
+        # Ground truth metadata for evaluation (isolated from feature inputs)
+        self.ground_truth_label: Optional[int] = None
+        self.ground_truth_category: Optional[str] = None
+        self.is_synthetic: bool = False
+
         # TCP Seq tracking for loss
         self.payload_ranges = {"forward": [], "reverse": []}
 
@@ -81,13 +105,36 @@ class FlowRecord:
         self.direction_known = source == "syn" or source == "port_inference"
         self.direction_source = source
 
-    @staticmethod
-    def _infer_direction(src_port: int, dst_port: int):
-        """Infer client direction only when one TCP endpoint is clearly a service port."""
-        if src_port > 1023 and 0 < dst_port <= 1023:
+    @classmethod
+    def _infer_direction(cls, src_port: int, dst_port: int) -> Optional[str]:
+        """
+        Infers client direction by inspecting common service ports and ephemeral port boundaries.
+        Returns:
+            'source' if src_port is the client (initiator),
+            'destination' if dst_port is the client (so packet came from server),
+            None if indeterminate.
+        """
+        src_is_svc = src_port in cls.COMMON_SERVICE_PORTS
+        dst_is_svc = dst_port in cls.COMMON_SERVICE_PORTS
+
+        # 1. Exact match against known service ports
+        if dst_is_svc and not src_is_svc:
+            return "source"
+        if src_is_svc and not dst_is_svc:
             return "destination"
+
+        # 2. Ephemeral vs System/Registered port boundary (32768+ standard ephemeral range)
+        if src_port >= 32768 and 0 < dst_port < 32768:
+            return "source"
+        if 0 < src_port < 32768 and dst_port >= 32768:
+            return "destination"
+
+        # 3. Traditional privileged port boundary (1024)
+        if src_port > 1023 and 0 < dst_port <= 1023:
+            return "source"
         if 0 < src_port <= 1023 and dst_port > 1023:
             return "destination"
+
         return None
 
     def _track_payload(self, direction: str, seq: int, payload_length: int):
@@ -131,6 +178,25 @@ class FlowRecord:
                     "syn",
                 )
             elif not self.direction_known:
+                inferred = self._infer_direction(packet_src_port, packet_dst_port)
+                if inferred == "source":
+                    self._set_forward_direction(
+                        packet_src_ip,
+                        packet_src_port,
+                        packet_dst_ip,
+                        packet_dst_port,
+                        "port_inference",
+                    )
+                elif inferred == "destination":
+                    self._set_forward_direction(
+                        packet_dst_ip,
+                        packet_dst_port,
+                        packet_src_ip,
+                        packet_src_port,
+                        "port_inference",
+                    )
+        elif UDP in packet:
+            if not self.direction_known:
                 inferred = self._infer_direction(packet_src_port, packet_dst_port)
                 if inferred == "source":
                     self._set_forward_direction(
@@ -195,7 +261,7 @@ class FlowRecord:
                 if self.syn_time:
                     self.synack = round(self.synack_time - self.syn_time, 6)
                     self.synack_available = True
-                self.state = "ACC"
+                self.state = "CON"  # In UNSW-NB15, active connection state is 'CON' (not 'ACC')
             elif flags.A and self.synack_time and not self.ack_time:  # ACK after SYN-ACK
                 self.ack_time = pkt_time
                 self.tcprtt = round(self.ack_time - self.syn_time, 6)
@@ -204,12 +270,19 @@ class FlowRecord:
 
             if flags.F:  # FIN
                 self.state = "FIN"
+                self.fin_packets = getattr(self, "fin_packets", 0) + 1
+                if self.fin_packets >= 2:
+                    self.closing = True
+                    self.close_time = pkt_time
             elif flags.R:  # RST
                 self.state = "RST"
+                self.closing = True
+                self.close_time = pkt_time
         elif UDP in packet:
             self.state = "CON" if (self.spkts > 0 and self.dpkts > 0) else "INT"
 
     def to_dict(self) -> Dict[str, Any]:
+        dur = round(self.last_time - self.start_time, 4)
         return {
             "src_ip": self.forward_ip,
             "dst_ip": self.reverse_ip,
@@ -233,7 +306,13 @@ class FlowRecord:
             "tcprtt_available": self.tcprtt_available,
             "trans_depth": self.trans_depth,
             "first_payload": self.first_payload,
-            "duration": round(self.last_time - self.start_time, 4),
+            "dur": dur,
+            "duration": dur,
+            "fin_packets": self.fin_packets,
+            "closing": self.closing,
+            "ground_truth_label": self.ground_truth_label,
+            "ground_truth_category": self.ground_truth_category,
+            "is_synthetic": self.is_synthetic,
         }
 
 
@@ -246,17 +325,24 @@ class FlowTableManager:
         self.idle_timeout = idle_timeout
         self.max_flows = max_flows
         self.active_flows: Dict[FlowKey, FlowRecord] = {}
+        self.recently_closed: Dict[FlowKey, float] = {}  # Tombstone cache to absorb trailing ACKs
         self.lock = threading.Lock()
         self.flow_expired_callback: Optional[Callable[[Dict[str, Any]], None]] = None
 
-    def process_packet(self, packet: Packet):
+    def process_packet(
+        self,
+        packet: Packet,
+        ground_truth_label: Optional[int] = None,
+        ground_truth_category: Optional[str] = None,
+        is_synthetic: bool = False,
+    ):
         if not (IP in packet or IPv6 in packet):
             return
 
         ip_layer = packet[IP] if IP in packet else packet[IPv6]
         src_ip = ip_layer.src
         dst_ip = ip_layer.dst
-        sttl = getattr(ip_layer, "ttl", 64)
+        sttl = getattr(ip_layer, "ttl", getattr(ip_layer, "hlim", 64))
 
         src_port = 0
         dst_port = 0
@@ -277,7 +363,18 @@ class FlowTableManager:
         now = time.time()
 
         with self.lock:
+            # Clean expired tombstone entries older than 3 seconds
+            if self.recently_closed:
+                self.recently_closed = {k: exp for k, exp in self.recently_closed.items() if exp > now}
+
             if key not in self.active_flows:
+                # Absorb trailing ACKs or teardown duplicates for recently closed flows
+                if key in self.recently_closed and TCP in packet:
+                    tcp_flags = int(packet[TCP].flags)
+                    # If packet is an ACK or FIN without SYN, absorb it without spawning an orphan flow
+                    if not (tcp_flags & 0x02):
+                        return
+
                 if len(self.active_flows) >= self.max_flows:
                     self._purge_oldest()
 
@@ -286,25 +383,39 @@ class FlowTableManager:
             else:
                 record = self.active_flows[key]
 
+            # Attach ground-truth metadata if provided (isolated from model features)
+            if ground_truth_label is not None and record.ground_truth_label is None:
+                record.ground_truth_label = ground_truth_label
+            if ground_truth_category is not None and record.ground_truth_category is None:
+                record.ground_truth_category = ground_truth_category
+            if is_synthetic:
+                record.is_synthetic = True
+
             record.update(packet, now)
 
-            # Fast expire FIN / RST or single packet UDP
-            if record.state in ["FIN", "RST"]:
-                flow_data = record.to_dict()
-                del self.active_flows[key]
-                if self.flow_expired_callback:
-                    self.flow_expired_callback(flow_data)
-
-    def expire_idle_flows(self):
-        """Scans active flows and expires flows exceeding idle_timeout."""
+    def expire_idle_flows(self, force: bool = False):
+        """
+        Scans active flows and expires flows exceeding idle_timeout (or 1.0s grace period for closing FIN/RST flows).
+        If force=True, expires all closing flows immediately.
+        """
         now = time.time()
         expired = []
 
         with self.lock:
             for key, record in list(self.active_flows.items()):
-                if (now - record.last_time) >= self.idle_timeout:
+                # Closed FIN/RST flows use 1.0s grace period to capture trailing ACKs
+                is_closing = getattr(record, "closing", False) or record.state in ("FIN", "RST")
+                if force:
+                    timeout = 0.0
+                elif is_closing:
+                    timeout = 1.0
+                else:
+                    timeout = self.idle_timeout
+
+                if (now - record.last_time) >= timeout:
                     expired.append(record.to_dict())
                     del self.active_flows[key]
+                    self.recently_closed[key] = now + 3.0
 
         if self.flow_expired_callback:
             for flow_dict in expired:
@@ -319,3 +430,4 @@ class FlowTableManager:
     def clear(self):
         with self.lock:
             self.active_flows.clear()
+            self.recently_closed.clear()

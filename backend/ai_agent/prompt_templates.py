@@ -6,130 +6,159 @@ SYSTEM_PROMPT = """
 You are an expert AI Cyber Security Analyst for an Enterprise Intrusion Detection System (IDS).
 Analyze the provided network detection event and return a structured JSON assessment.
 
-Your recommendations MUST be recommendation-only. Do NOT execute or propose automatic destructive actions (e.g. blocking IPs, shutting interfaces, deleting files).
+IMPORTANT CONSTRAINTS:
+1. Your recommendations MUST be recommendation-only and NON-DESTRUCTIVE. Do NOT propose automatic blocking of IPs, killing processes, or changing firewall rules directly.
+2. DO NOT HALLUCINATE. Use ONLY facts explicitly provided in the event input (src_ip, dst_ip, ports, protocol, service, stats). Do NOT invent CVE numbers, malware family names, user accounts, or attacker identities. If information is absent, state "Not available from current network-flow data."
+3. Use confidence-aware, non-absolute language (e.g., "The model identified traffic patterns that resemble...", "Potential attack pattern", "Model prediction").
+4. If the traffic is Normal, set severity to "Informational" and provide simple reassurance.
 
-Output strict JSON with these keys:
+Output strict JSON matching this structure:
 {
   "threat_summary": "Short 1-2 sentence summary of what was detected",
-  "explanation": "Detailed technical explanation of the attack category and why it is suspicious",
-  "severity": "Low | Medium | High | Critical",
+  "explanation": "Clear explanation of the traffic pattern and why it is classified as this category",
+  "why_flagged": "Specific flow characteristics (packet rate, byte ratio, TTL, duration) that matched the model signature",
+  "severity": "Informational | Low | Medium | High | Critical",
   "recommended_actions": ["Action 1", "Action 2", "Action 3"],
   "investigation_guidance": ["Guidance 1", "Guidance 2"]
 }
 """
 
 RULE_FALLBACK_DATABASE = {
-    "Reconnaissance": {
-        "threat_summary": "Network Reconnaissance / Port Scanning Activity Detected",
-        "explanation": "High volume of rapid connection attempts across multiple ports or endpoints indicates active network scanning or service discovery by an external host.",
-        "severity": "Medium",
+    "Normal": {
+        "threat_summary": "Normal Network Traffic Observed",
+        "explanation": "The ML model analyzed this network flow and confirmed standard operational parameters with no threat signatures.",
+        "why_flagged": "Flow duration, byte count, packet counts, and TTL values match baseline normal network behavior.",
+        "severity": "Informational",
         "recommended_actions": [
-            "Verify whether the source host (src_ip) is an authorized vulnerability scanner.",
-            "Review firewall logs for unauthorized port scan attempts on sensitive internal ports.",
-            "Consider temporary host isolation after human verification."
+            "No immediate action required.",
+            "Continue routine network telemetry monitoring."
         ],
         "investigation_guidance": [
-            "Inspect web server access logs for automated scanning user-agents.",
-            "Check netstat output on target destination host to confirm open listening services."
+            "Standard operational traffic.",
+            "No deeper investigation required unless unexpected endpoints are involved."
+        ]
+    },
+    "Reconnaissance": {
+        "threat_summary": "Potential Network Reconnaissance / Scanning Activity Detected",
+        "explanation": "The model detected traffic patterns resembling active network probing or port scanning behavior.",
+        "why_flagged": "Observed rapid connection attempts across multiple destination ports or sequential host IPs.",
+        "severity": "Medium",
+        "recommended_actions": [
+            "Review whether the source host is an authorized internal vulnerability scanner.",
+            "Inspect recent network log entries for unauthorized port probing on sensitive ports.",
+            "Verify perimeter access control policies for exposed services."
+        ],
+        "investigation_guidance": [
+            "Examine web server access logs for automated scanning user-agents.",
+            "Check netstat or active connection lists on the target host."
         ]
     },
     "DoS": {
-        "threat_summary": "Denial of Service (DoS) Traffic Pattern Detected",
-        "explanation": "Abnormally high packet rate or SYN flooding detected originating from a single source host targeting destination services, potentially overwhelming network capacity.",
+        "threat_summary": "Potential Denial of Service (DoS) Traffic Pattern Detected",
+        "explanation": "The model identified high packet volumes or SYN flooding characteristics targeting network endpoints.",
+        "why_flagged": "Abnormally high packet rate, elevated SYN-to-FIN packet ratio, or high volume of short-lived connections.",
         "severity": "High",
         "recommended_actions": [
-            "Inspect destination service CPU and bandwidth utilization.",
-            "Apply rate limiting at the perimeter router or web application firewall (WAF).",
-            "Monitor connection table state for SYN queue exhaustion."
+            "Inspect target destination service CPU and network bandwidth utilization.",
+            "Review web application firewall (WAF) or perimeter router rate-limiting policies.",
+            "Monitor connection state tables for SYN queue saturation."
         ],
         "investigation_guidance": [
-            "Cross-reference source IP against known malicious threat intelligence lists.",
-            "Examine packet dump for forged source headers or repetitive TCP SYN sequences."
+            "Cross-reference source IP against internal host inventory and external threat lists.",
+            "Examine packet header distributions for repetitive sequence numbers or forged headers."
         ]
     },
     "Exploits": {
-        "threat_summary": "Software Exploit Payload / Vulnerability Target Detected",
-        "explanation": "Traffic payload contains signatures or TCP state anomalies corresponding to unpatched software exploitation attempts.",
+        "threat_summary": "Potential Software Exploit Payload / Vulnerability Target Pattern",
+        "explanation": "The model detected payload signatures or TCP session characteristics resembling known software exploit attempts.",
+        "why_flagged": "Payload byte structures or anomalous window size variations matched known vulnerability exploit signatures.",
         "severity": "Critical",
         "recommended_actions": [
-            "Immediately inspect target system patch levels for exposed services.",
-            "Review application error logs for memory access violations or crash traces.",
-            "Prepare incident response team for potential post-exploitation containment."
+            "Review system patch levels and software versions on the target system.",
+            "Check application server error logs for memory access violations or unusual crashes.",
+            "Alert security team for post-detection containment and verification."
         ],
         "investigation_guidance": [
-            "Capture payload sample and analyze against CVE database.",
-            "Check endpoint EDR alerts for process injection or unusual child process spawns."
+            "Capture payload traffic dump for forensic signature analysis against public advisory databases.",
+            "Inspect endpoint EDR logs for unusual child process creation."
         ]
     },
     "Fuzzers": {
-        "threat_summary": "Protocol Fuzzing / Input Mutation Attack Detected",
-        "explanation": "Malformed packet structures or randomized payload lengths detected aiming to trigger application crashes or unhandled exceptions.",
+        "threat_summary": "Potential Protocol Fuzzing / Malformed Input Pattern",
+        "explanation": "The model identified traffic resembling randomized or malformed payload structures intended to test application stability.",
+        "why_flagged": "Irregular payload lengths, unexpected packet flags, or unparsed byte sequences.",
         "severity": "Medium",
         "recommended_actions": [
-            "Ensure input validation and sanitization filters are enabled on the target service.",
-            "Monitor destination application service uptime for unexpected restarts."
+            "Verify input validation and sanitization configurations on target applications.",
+            "Monitor destination application process stability for unexpected restarts."
         ],
         "investigation_guidance": [
-            "Examine application crash logs or core dumps for buffer overflow indicators."
+            "Inspect application error logs for unhandled exception traces or core dumps."
         ]
     },
     "Generic": {
-        "threat_summary": "Generic Anomaly / Cryptographic Collision Attack",
-        "explanation": "High collision rate in feature space matching synthetic/generic attack patterns in network traffic.",
+        "threat_summary": "Generic Anomaly / Cryptographic Collision Pattern",
+        "explanation": "The model flagged traffic matching synthetic or generic intrusion feature space profiles.",
+        "why_flagged": "Feature vector distance exceeded normal threshold across packet size and flow duration metrics.",
         "severity": "Medium",
         "recommended_actions": [
-            "Inspect flow byte count and packet ratio for non-standard protocol usage."
+            "Review flow byte counts and packet ratios for non-standard protocol usage.",
+            "Verify whether source and destination hosts have expected communication history."
         ],
         "investigation_guidance": [
-            "Compare flow duration and TCP RTT against baseline network profiles."
+            "Compare flow duration and TCP Round Trip Time (RTT) against baseline traffic profiles."
         ]
     },
     "Analysis": {
-        "threat_summary": "Intrusive Traffic Analysis / Web HTML Probing",
-        "explanation": "In-depth HTTP directory traversal, CGI probe, or web spidering behavior detected.",
+        "threat_summary": "Potential Web Directory Probing / Intrusive Traffic Analysis",
+        "explanation": "The model detected traffic characteristics resembling URI directory traversal or web structure probing.",
+        "why_flagged": "Repeated HTTP request sequences targeting non-existent path resources.",
         "severity": "Low",
         "recommended_actions": [
-            "Ensure web server directory listing is disabled.",
-            "Review web server 404 error logs for brute-force URI guessing."
+            "Ensure directory indexing is disabled on target web servers.",
+            "Review web server 404 HTTP error logs for automated brute-force URL guessing."
         ],
         "investigation_guidance": [
-            "Check HTTP transaction depth and response code distribution."
+            "Examine HTTP status code distributions and user-agent strings."
         ]
     },
     "Backdoor": {
-        "threat_summary": "Backdoor Connection / Command and Control (C2) Activity",
-        "explanation": "Persistent outbound connection to non-standard remote port indicating potential command-and-control beaconing.",
+        "threat_summary": "Potential Backdoor / Command and Control (C2) Activity",
+        "explanation": "The model detected persistent outbound connection patterns associated with remote backdoor beaconing.",
+        "why_flagged": "Persistent low-frequency packet transmissions to non-standard remote ports.",
         "severity": "Critical",
         "recommended_actions": [
-            "Isolate the affected internal host from the network immediately for forensic review.",
-            "Identify running processes bound to the outbound socket."
+            "Initiate forensic inspection on the source host for unauthorized running processes.",
+            "Identify active network sockets bound to external destination IP addresses."
         ],
         "investigation_guidance": [
-            "Check process tree for unauthorized binary execution (e.g. powershell, nc, cmd)."
+            "Inspect process execution tree on source host for unexpected shell or scripting invocations."
         ]
     },
     "Shellcode": {
-        "threat_summary": "Executable Shellcode Payload Detected",
-        "explanation": "Binary payload contains NOP sleds or machine code sequences intended to spawn a remote shell.",
+        "threat_summary": "Potential Executable Shellcode Payload Pattern",
+        "explanation": "The model detected binary payload patterns resembling NOP sleds or machine code sequences.",
+        "why_flagged": "Raw payload byte entropy and consecutive machine instruction sequences matched shellcode signatures.",
         "severity": "Critical",
         "recommended_actions": [
-            "Isolate host and run memory forensic analysis.",
-            "Check security event logs for privilege escalation attempts."
+            "Perform host-based memory inspection on target system.",
+            "Check local security event logs for privilege escalation attempts."
         ],
         "investigation_guidance": [
-            "Analyze raw packet payload for shellcode instructions."
+            "Inspect packet payload dumps for shellcode assembly instructions."
         ]
     },
     "Worms": {
-        "threat_summary": "Self-Propagating Network Worm Traffic Detected",
-        "explanation": "Automated scanning coupled with payload execution attempting lateral movement across internal subnets.",
+        "threat_summary": "Potential Self-Propagating Network Worm Traffic",
+        "explanation": "The model identified scanning coupled with payload transmission suggesting automated lateral propagation.",
+        "why_flagged": "Rapid scanning across internal IP ranges combined with exploit payload signatures.",
         "severity": "High",
         "recommended_actions": [
-            "Segment network subnets to prevent lateral propagation.",
-            "Audit SMB / RDP / SSH authentication logs across internal hosts."
+            "Verify internal network segmentation between subnets.",
+            "Audit SMB, RDP, and SSH authentication logs for unusual lateral connections."
         ],
         "investigation_guidance": [
-            "Monitor internal subnet traffic for sudden spikes in port 445 / 3389 / 22 attempts."
+            "Monitor internal network traffic for sudden spikes targeting ports 445, 3389, or 22."
         ]
     }
 }
