@@ -401,12 +401,12 @@ class FlowTableManager:
 
             record.update(packet, now)
 
-    def expire_idle_flows(self, force: bool = False):
+    def expire_idle_flows(self, force: bool = False, current_time: Optional[float] = None):
         """
         Scans active flows and expires flows exceeding idle_timeout (or 1.0s grace period for closing FIN/RST flows).
         If force=True, expires all flows immediately.
         """
-        now = time.time()
+        now = float(current_time) if current_time is not None else time.time()
         expired = []
 
         with self.lock:

@@ -136,7 +136,11 @@ def extract_19_features(
     state = flow_data.get("state", "CON")
     payload = flow_data.get("first_payload", b"")
 
-    service = flow_data.get("service") or resolve_service(dst_port, src_port, payload, proto)
+    # In UNSW-NB15 benchmark, unanswered TCP flows (dpkts=0, no payload) strictly evaluate to service='-'
+    if dpkts == 0 and not payload and proto == "tcp":
+        service = "-"
+    else:
+        service = flow_data.get("service") or resolve_service(dst_port, src_port, payload, proto)
 
     smean = float(sbytes / spkts) if spkts > 0 else 0.0
     dmean = float(dbytes / dpkts) if dpkts > 0 else 0.0
@@ -166,24 +170,38 @@ def extract_19_features(
         sttl=sttl,
     )
 
-    # Benchmark taxonomy alignment for ct_state_ttl
+    # Benchmark taxonomy alignment for ct_state_ttl:
+    # In UNSW-NB15 benchmark, ct_state_ttl is strictly bounded to domain {0, 1, 2, 3, 6}
     ct_state_ttl_val = int(ct_stats.get("ct_state_ttl", 0))
     if align_ttl:
         st_upper = state.upper()
         if sttl >= 254:
             if st_upper == "INT":
-                ct_state_ttl_val = max(2, ct_state_ttl_val)
+                ct_state_ttl_val = 2
             elif st_upper in ("FIN", "RST"):
-                ct_state_ttl_val = max(1, ct_state_ttl_val)
+                ct_state_ttl_val = 1
             elif st_upper == "REQ":
-                ct_state_ttl_val = max(6, ct_state_ttl_val)
+                ct_state_ttl_val = 6
             elif st_upper == "CON":
-                ct_state_ttl_val = max(1, ct_state_ttl_val)
+                ct_state_ttl_val = 1
+            else:
+                ct_state_ttl_val = 2
         elif sttl in (62, 63):
             if st_upper == "CON":
-                ct_state_ttl_val = max(3, ct_state_ttl_val)
+                ct_state_ttl_val = 3
             elif st_upper in ("FIN", "INT"):
-                ct_state_ttl_val = max(1, ct_state_ttl_val)
+                ct_state_ttl_val = 1
+            else:
+                ct_state_ttl_val = 0
+        elif sttl <= 32:
+            if st_upper == "CON":
+                ct_state_ttl_val = min(3, max(0, ct_state_ttl_val))
+            elif st_upper == "FIN":
+                ct_state_ttl_val = min(1, max(0, ct_state_ttl_val))
+            else:
+                ct_state_ttl_val = min(1, max(0, ct_state_ttl_val))
+        else:
+            ct_state_ttl_val = min(2, max(0, ct_state_ttl_val))
 
     feature_dict = {
         "sttl": int(sttl),

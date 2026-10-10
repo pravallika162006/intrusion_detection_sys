@@ -52,7 +52,7 @@ class PacketCapturerManager:
         self.test_fn = 0  # GT=Attack (1), Pred=Normal (0)
         self.evaluated_flow_ids: Set[str] = set()
         self.test_records: List[Dict[str, Any]] = []
-        self.decision_threshold: float = 0.80
+        self.decision_threshold: float = 0.50
 
         self.event_callback: Optional[Callable[[Dict[str, Any]], None]] = None
         self.flow_table.flow_expired_callback = self._on_flow_expired
@@ -71,9 +71,15 @@ class PacketCapturerManager:
         actual_normal = self.test_tn + self.test_fp
         actual_attack = self.test_tp + self.test_fn
 
-        prec_val = (self.test_tp / (self.test_tp + self.test_fp)) if (self.test_tp + self.test_fp) > 0 else 0.0
-        rec_val = (self.test_tp / actual_attack) if actual_attack > 0 else 0.0
-        f1_val = (2 * prec_val * rec_val / (prec_val + rec_val)) if (prec_val + rec_val) > 0 else 0.0
+        # Strict metric handling with explicit conventions for undefined scenarios
+        # Precision: Undefined if no flows are predicted positive (TP + FP == 0)
+        prec_val = (self.test_tp / (self.test_tp + self.test_fp)) if (self.test_tp + self.test_fp) > 0 else (0.0 if actual_attack > 0 else None)
+        # Recall: Undefined if there are zero attack instances in ground truth (actual_attack == 0, e.g. Normal-Only)
+        rec_val = (self.test_tp / actual_attack) if actual_attack > 0 else None
+        # F1: Undefined if precision or recall is undefined, or their sum is zero
+        f1_val = (2 * prec_val * rec_val / (prec_val + rec_val)) if (prec_val is not None and rec_val is not None and (prec_val + rec_val) > 0) else None
+        # Specificity / True Negative Rate (Benign detection rate)
+        tnr_val = (self.test_tn / actual_normal) if actual_normal > 0 else None
         fpr_val = (self.test_fp / actual_normal) if actual_normal > 0 else 0.0
         fnr_val = (self.test_fn / actual_attack) if actual_attack > 0 else 0.0
         acc_val = ((self.test_tp + self.test_tn) / total_eval) if total_eval > 0 else 0.0
@@ -87,9 +93,10 @@ class PacketCapturerManager:
             "actual_normal": actual_normal,
             "actual_attack": actual_attack,
             "accuracy": round(acc_val * 100, 2),
-            "precision": round(prec_val * 100, 2),
-            "recall": round(rec_val * 100, 2),
-            "f1": round(f1_val * 100, 2),
+            "precision": round(prec_val * 100, 2) if prec_val is not None else None,
+            "recall": round(rec_val * 100, 2) if rec_val is not None else None,
+            "f1": round(f1_val * 100, 2) if f1_val is not None else None,
+            "specificity": round(tnr_val * 100, 2) if tnr_val is not None else None,
             "fpr": round(fpr_val * 100, 2),
             "fnr": round(fnr_val * 100, 2),
             "missed_attack_rate": round(fnr_val * 100, 2),
@@ -102,7 +109,7 @@ class PacketCapturerManager:
         test_mode: bool = False,
         test_scenario: str = "mixed_75_25",
         event_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
-        threshold: float = 0.80,
+        threshold: float = 0.50,
         start_generator_thread: bool = True,
     ):
         """Starts packet capture on specified interface or launches Controlled TEST MODE."""
@@ -374,10 +381,12 @@ class PacketCapturerManager:
             if atk_type == "dos":
                 gt_cat = "DoS (SYN Flood)"
                 flood_port = random.choice([8080, 8888, 9000, 1337, 31337])
-                for j in range(6):
+                num_pkts = random.randint(6, 10)
+                burst_delta = random.uniform(0.00003, 0.00006)
+                for j in range(num_pkts):
                     self._on_packet_received(
                         IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=flood_port, flags="S", seq=5000+j),
-                        ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t + j*0.001
+                        ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t + j * burst_delta
                     )
             elif atk_type == "exploit":
                 gt_cat = "Web Exploit (SQL Injection)"

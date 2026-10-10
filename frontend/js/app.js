@@ -410,19 +410,93 @@ function renderPhase3Tables(p3) {
 
     // Final Frozen Test Results
     (p3.final_test_results || []).forEach(r => {
+        const macroF1 = r["Macro F1 (%)"] || r["F1-Score (%)"] || "—";
+        const weightedF1 = r["Weighted F1 (%)"] || "—";
+        const isMulti = r.Task === "Multiclass";
         tbodyFinal.innerHTML += `
             <tr>
                 <td><span class="badge-tag ${r.Task === 'Binary' ? 'bg-cyan-950 text-cyan-300' : 'bg-indigo-950 text-indigo-300'}">${r.Task}</span></td>
                 <td class="font-bold text-white">${r["Selected Model"]}</td>
+                <td><span class="text-[11px] text-slate-400">UNSW-NB15 Test (82,332)</span></td>
                 <td><span class="badge-tag ${r.Status.includes('Adopted') ? 'bg-emerald-950 text-emerald-300' : 'bg-amber-950 text-amber-300'}">${r.Status}</span></td>
                 <td class="text-slate-300">${r["Val Accuracy (%)"]}%</td>
                 <td class="font-bold text-indigo-300 text-sm">${r["Test Accuracy (%)"]}%</td>
                 <td>${r["Precision (%)"]}%</td>
                 <td>${r["Recall (%)"]}%</td>
-                <td class="font-bold text-white">${r["F1-Score (%)"]}%</td>
+                <td class="font-semibold text-amber-300" title="Macro F1: Unweighted arithmetic mean across all classes">${macroF1}%</td>
+                <td class="font-bold text-emerald-400" title="Weighted F1: Support-weighted average (benchmark convention matching Kasongo & Sun 2020 Table 7)">${weightedF1}%</td>
+                <td>
+                    ${isMulti ? `<button onclick="showPerClassBreakdown('multiclass')" class="text-xs bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 px-2.5 py-1 rounded border border-indigo-700/60 transition"><i class="fa-solid fa-chart-pie mr-1"></i>View Classes</button>` : `<button onclick="showPerClassBreakdown('binary')" class="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700 transition"><i class="fa-solid fa-list mr-1"></i>Binary</button>`}
+                </td>
             </tr>
         `;
     });
+}
+
+async function showPerClassBreakdown(task) {
+    const container = document.getElementById("p3-per-class-container");
+    const tbody = document.querySelector("#table-p3-per-class tbody");
+    const title = document.getElementById("p3-per-class-title");
+    if (!container || !tbody) return;
+
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-slate-400 py-3"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading per-class metrics...</td></tr>`;
+    container.classList.remove("hidden");
+
+    try {
+        const res = await fetch(`/api/performances/classification-report/phase3/${task}`);
+        const data = await res.json();
+        tbody.innerHTML = "";
+
+        if (title) {
+            title.innerHTML = `<i class="fa-solid fa-list-check text-indigo-400 mr-2"></i>Per-Class Metrics: ${task.toUpperCase()} (Official UNSW-NB15 Test Set, 82,332 samples)`;
+        }
+
+        const totalSupport = (data.classes || []).reduce((a, b) => a + (b.support || 0), 0);
+
+        (data.classes || []).forEach(c => {
+            const share = totalSupport > 0 ? ((c.support / totalSupport) * 100).toFixed(2) : "0.00";
+            const f1BadgeClass = c.f1_score >= 80 ? "text-emerald-400 font-bold" : (c.f1_score >= 50 ? "text-amber-300" : "text-rose-400");
+            tbody.innerHTML += `
+                <tr>
+                    <td class="font-bold text-white">${c.class}</td>
+                    <td>${c.precision}%</td>
+                    <td>${c.recall}%</td>
+                    <td class="${f1BadgeClass}">${c.f1_score}%</td>
+                    <td>${c.support.toLocaleString()}</td>
+                    <td class="text-slate-400 text-xs">${share}%</td>
+                </tr>
+            `;
+        });
+
+        if (data.macro_avg) {
+            tbody.innerHTML += `
+                <tr class="bg-slate-900/80 font-semibold border-t border-slate-700">
+                    <td class="text-amber-300 font-bold">Macro Average (Equal class weight)</td>
+                    <td>${data.macro_avg.precision}%</td>
+                    <td>${data.macro_avg.recall}%</td>
+                    <td class="text-amber-300 font-bold">${data.macro_avg.f1_score}%</td>
+                    <td>${data.macro_avg.support.toLocaleString()}</td>
+                    <td>100.00%</td>
+                </tr>
+            `;
+        }
+        if (data.weighted_avg) {
+            tbody.innerHTML += `
+                <tr class="bg-indigo-950/40 font-semibold">
+                    <td class="text-emerald-400 font-bold">Weighted Average (Benchmark convention)</td>
+                    <td>${data.weighted_avg.precision}%</td>
+                    <td>${data.weighted_avg.recall}%</td>
+                    <td class="text-emerald-400 font-bold">${data.weighted_avg.f1_score}%</td>
+                    <td>${data.weighted_avg.support.toLocaleString()}</td>
+                    <td>100.00%</td>
+                </tr>
+            `;
+        }
+
+        container.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-rose-400 py-3">Error loading per-class report: ${e.message}</td></tr>`;
+    }
 }
 
 function renderP1Chart(p1) {
@@ -874,7 +948,7 @@ async function startLiveMonitoring(isTestMode = false) {
     const iface = document.getElementById("select-interface").value;
     const scenario = document.getElementById("select-test-scenario")?.value || "mixed_75_25";
     const thresholdInput = document.getElementById("input-threshold");
-    const thresholdVal = thresholdInput ? parseFloat(thresholdInput.value) : 0.80;
+    const thresholdVal = thresholdInput ? parseFloat(thresholdInput.value) : 0.50;
 
     try {
         const res = await fetch("/api/live/start", {
@@ -991,12 +1065,12 @@ function renderTestEvaluation(te) {
     if (elFp) elFp.textContent = (te.fp || 0).toLocaleString();
     if (elTn) elTn.textContent = (te.tn || 0).toLocaleString();
     if (elFn) elFn.textContent = (te.fn || 0).toLocaleString();
-    if (elAcc) elAcc.textContent = `${te.accuracy}%`;
-    if (elPrec) elPrec.textContent = `${te.precision}%`;
-    if (elRec) elRec.textContent = `${te.recall}%`;
-    if (elF1) elF1.textContent = `${te.f1}%`;
-    if (elFpr) elFpr.textContent = `${te.fpr}%`;
-    if (elFnr) elFnr.textContent = `${te.fnr}%`;
+    if (elAcc) elAcc.textContent = (te.accuracy !== null && te.accuracy !== undefined) ? `${te.accuracy}%` : "—";
+    if (elPrec) elPrec.textContent = (te.precision !== null && te.precision !== undefined) ? `${te.precision}%` : (te.actual_attack === 0 ? "N/A*" : "0.0%");
+    if (elRec) elRec.textContent = (te.recall !== null && te.recall !== undefined) ? `${te.recall}%` : (te.actual_attack === 0 ? "N/A*" : "0.0%");
+    if (elF1) elF1.textContent = (te.f1 !== null && te.f1 !== undefined) ? `${te.f1}%` : (te.actual_attack === 0 ? "N/A*" : "0.0%");
+    if (elFpr) elFpr.textContent = (te.fpr !== null && te.fpr !== undefined) ? `${te.fpr}%` : "0.0%";
+    if (elFnr) elFnr.textContent = (te.fnr !== null && te.fnr !== undefined) ? `${te.fnr}%` : "0.0%";
 
     // Detailed scenario breakdown counters
     const elActNorm = document.getElementById("test-eval-act-normal");

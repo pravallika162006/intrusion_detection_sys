@@ -312,3 +312,89 @@ def get_confusion_matrix(phase: str, task: str, model_name: str):
                             return json.load(in_f)
 
     raise HTTPException(status_code=404, detail=f"Confusion matrix for {phase} {task} {model_name} not found.")
+
+
+def parse_classification_report_text(text: str) -> Dict[str, Any]:
+    """Parses standard sklearn classification_report text into structured dictionary."""
+    lines = [line.strip() for line in text.strip().split("\n") if line.strip()]
+    classes = []
+    accuracy_val = None
+    macro_avg = None
+    weighted_avg = None
+
+    for line in lines[1:]:  # Skip header
+        parts = line.split()
+        if not parts:
+            continue
+        if parts[0] == "accuracy":
+            try:
+                accuracy_val = round(float(parts[1]) * 100, 2)
+            except Exception:
+                pass
+        elif parts[0] == "macro" and len(parts) >= 5 and parts[1] == "avg":
+            try:
+                macro_avg = {
+                    "precision": round(float(parts[2]) * 100, 2),
+                    "recall": round(float(parts[3]) * 100, 2),
+                    "f1_score": round(float(parts[4]) * 100, 2),
+                    "support": int(parts[5]) if len(parts) > 5 else 0,
+                }
+            except Exception:
+                pass
+        elif parts[0] == "weighted" and len(parts) >= 5 and parts[1] == "avg":
+            try:
+                weighted_avg = {
+                    "precision": round(float(parts[2]) * 100, 2),
+                    "recall": round(float(parts[3]) * 100, 2),
+                    "f1_score": round(float(parts[4]) * 100, 2),
+                    "support": int(parts[5]) if len(parts) > 5 else 0,
+                }
+            except Exception:
+                pass
+        elif len(parts) >= 5:
+            c_name = parts[0]
+            try:
+                classes.append({
+                    "class": c_name,
+                    "precision": round(float(parts[1]) * 100, 2),
+                    "recall": round(float(parts[2]) * 100, 2),
+                    "f1_score": round(float(parts[3]) * 100, 2),
+                    "support": int(parts[4]),
+                })
+            except Exception:
+                continue
+
+    return {
+        "classes": classes,
+        "accuracy": accuracy_val,
+        "macro_avg": macro_avg,
+        "weighted_avg": weighted_avg,
+    }
+
+
+@router.get("/classification-report/{phase}/{task}")
+def get_classification_report(phase: str, task: str):
+    """
+    Returns structured per-class precision, recall, F1, and support for the specified phase and task.
+    Enables deep inspection of class imbalance and minority class performance on official test set.
+    """
+    clean_task = task.lower()
+    if phase == "phase3":
+        report_path = PHASE3_RESULTS_DIR / "classification_reports" / f"enhanced_{clean_task}_classification_report.txt"
+    else:
+        report_path = RESULTS_DIR / phase / "classification_reports" / f"{clean_task}_classification_report.txt"
+        if not report_path.exists():
+            report_path = PHASE3_RESULTS_DIR / "classification_reports" / f"enhanced_{clean_task}_classification_report.txt"
+
+    if not report_path.exists():
+        raise HTTPException(status_code=404, detail=f"Classification report not found at {report_path}")
+
+    with open(report_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    parsed = parse_classification_report_text(content)
+    parsed["phase"] = phase
+    parsed["task"] = task
+    parsed["raw_report"] = content
+    return parsed
+

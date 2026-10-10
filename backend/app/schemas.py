@@ -70,10 +70,10 @@ class StartCaptureRequest(BaseModel):
     test_scenario: Optional[str] = "mixed_75_25"  # "normal_only", "attack_only", "mixed_50_50", "mixed_75_25"
     binary_model: str = "xgboost_dt"
     multiclass_model: str = "ann"
-    threshold: float = 0.80
+    threshold: float = 0.50
 
 class SetThresholdRequest(BaseModel):
-    threshold: float = Field(0.80, ge=0.10, le=0.99, description="Calibrated operating threshold (0.10 - 0.99)")
+    threshold: float = Field(0.50, ge=0.10, le=0.99, description="Calibrated operating threshold (0.10 - 0.99)")
 
 class AIRecommendationRequest(BaseModel):
     flow_id: str
