@@ -736,24 +736,38 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-                    <div class="lg:col-span-5">
-                        <label class="block text-xs font-semibold text-slate-400 mb-1.5">Network Adapter Interface</label>
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+                    <div class="lg:col-span-4">
+                        <label class="block text-xs font-semibold text-slate-400 mb-1.5 flex items-center">
+                            <i class="fa-solid fa-network-wired text-cyan-400 mr-1.5"></i>Network Adapter Interface
+                        </label>
                         <select id="select-interface" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-slate-200 focus:outline-none focus:border-cyan-500">
-                            <option value="Wi-Fi">Wi-Fi (Default Scapy Interface)</option>
+                            <option value="Wi-Fi">Wi-Fi (Active Network Adapter)</option>
                             <option value="Ethernet">Ethernet</option>
                         </select>
                     </div>
 
-                    <div class="lg:col-span-7 flex flex-wrap gap-3 items-end">
-                        <button id="btn-start-live" onclick="startLiveMonitoring(false)" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white py-2.5 px-4 rounded-xl text-xs font-bold transition shadow-lg shadow-cyan-600/20 flex items-center justify-center">
-                            <i class="fa-solid fa-play mr-2"></i>Start Live Capture
+                    <div class="lg:col-span-3">
+                        <label class="block text-xs font-semibold text-slate-400 mb-1.5 flex items-center">
+                            <i class="fa-solid fa-flask-vial text-amber-400 mr-1.5"></i>TEST MODE Scenario
+                        </label>
+                        <select id="select-test-scenario" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-medium text-amber-200 focus:outline-none focus:border-amber-500">
+                            <option value="mixed_75_25">Mixed 75/25 (75% Normal, 25% Attack)</option>
+                            <option value="mixed_50_50">Mixed 50/50 (50% Normal, 50% Attack)</option>
+                            <option value="normal_only">Normal Only (100% Benign Traffic)</option>
+                            <option value="attack_only">Attack Only (100% Malicious Traffic)</option>
+                        </select>
+                    </div>
+
+                    <div class="lg:col-span-5 flex flex-wrap gap-2.5">
+                        <button id="btn-start-live" onclick="startLiveMonitoring(false)" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white py-2 px-3 rounded-xl text-xs font-bold transition shadow-lg shadow-cyan-600/20 flex items-center justify-center">
+                            <i class="fa-solid fa-play mr-1.5"></i>Start Live Capture
                         </button>
-                        <button id="btn-start-test" onclick="startLiveMonitoring(true)" class="flex-1 bg-amber-600/90 hover:bg-amber-500 text-white py-2.5 px-4 rounded-xl text-xs font-bold transition shadow-lg shadow-amber-600/20 flex items-center justify-center">
-                            <i class="fa-solid fa-flask mr-2"></i>Start TEST MODE
+                        <button id="btn-start-test" onclick="startLiveMonitoring(true)" class="flex-1 bg-amber-600/90 hover:bg-amber-500 text-white py-2 px-3 rounded-xl text-xs font-bold transition shadow-lg shadow-amber-600/20 flex items-center justify-center">
+                            <i class="fa-solid fa-flask mr-1.5"></i>Start TEST MODE
                         </button>
-                        <button id="btn-stop-live" onclick="stopLiveMonitoring()" disabled class="flex-1 bg-slate-800 disabled:opacity-50 text-rose-400 border border-slate-700 hover:bg-rose-950/60 py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center">
-                            <i class="fa-solid fa-stop mr-2"></i>Stop Monitoring
+                        <button id="btn-stop-live" onclick="stopLiveMonitoring()" disabled class="flex-1 bg-slate-800 disabled:opacity-50 text-rose-400 border border-slate-700 hover:bg-rose-950/60 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center">
+                            <i class="fa-solid fa-stop mr-1.5"></i>Stop Monitoring
                         </button>
                     </div>
                 </div>
@@ -769,16 +783,16 @@
                         </div>
                         <input type="range" id="input-threshold" min="0.50" max="0.95" step="0.05" value="0.80" oninput="onThresholdChange(this.value)" class="w-full accent-cyan-500 cursor-pointer h-2 bg-slate-950 rounded-lg">
                         <div class="flex justify-between text-[10px] text-slate-500 mt-1">
-                            <span>0.50 (Permissive)</span>
-                            <span class="text-emerald-400 font-semibold">0.80 (Optimal Calibrated)</span>
-                            <span>0.95 (Conservative)</span>
+                            <span title="Permissive sensitivity: higher recall, potential false alarms">0.50 (Permissive)</span>
+                            <span class="text-emerald-400 font-semibold" title="Calibrated on validation set: >74% FP suppression with 90.9% recall">0.80 (Calibrated Baseline)</span>
+                            <span title="Conservative sensitivity: high precision, flags only extreme deviations">0.95 (Conservative)</span>
                         </div>
                     </div>
                     <div class="md:col-span-7 bg-slate-950/60 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 flex items-center space-x-3">
                         <i class="fa-solid fa-circle-info text-cyan-400 text-lg flex-shrink-0"></i>
                         <div>
-                            <span class="text-slate-200 font-semibold">Validation Calibration Insight:</span>
-                            <span class="text-[11px] block text-slate-400">At threshold 0.80, empirical false alarms on validation data drop from 8.92% to 2.32% (&gt;74% FP reduction) while preserving 90.9% recall and 94.7% F1-score.</span>
+                            <span class="text-slate-200 font-semibold">Real-Time Threshold Control:</span>
+                            <span class="text-[11px] block text-slate-400">Controls binary classification boundary across both Live Capture and TEST MODE. Calibrated at 0.80 on validation experiments to suppress default OS-TTL artifacts while retaining &gt;90% threat detection.</span>
                         </div>
                     </div>
                 </div>
@@ -796,20 +810,36 @@
             <!-- Live Metrics Overview -->
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                    <span class="text-xs text-slate-400 block mb-1">Packets Captured</span>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-slate-400">Packets Captured</span>
+                        <i class="fa-solid fa-layer-group text-slate-600 text-xs"></i>
+                    </div>
                     <span id="live-stat-packets" class="text-2xl font-bold text-white">0</span>
+                    <span class="text-[10px] text-slate-500 block mt-0.5">Raw packets sniffed by Scapy</span>
                 </div>
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                    <span class="text-xs text-slate-400 block mb-1">Active Flows</span>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-slate-400">Processed Flows</span>
+                        <i class="fa-solid fa-diagram-project text-cyan-600 text-xs"></i>
+                    </div>
                     <span id="live-stat-flows" class="text-2xl font-bold text-cyan-400">0</span>
+                    <span class="text-[10px] text-slate-500 block mt-0.5">Reconstructed & evaluated flows</span>
                 </div>
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                    <span class="text-xs text-emerald-400 block mb-1">Normal Flows</span>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-emerald-400">Normal Predictions</span>
+                        <i class="fa-solid fa-shield-check text-emerald-600 text-xs"></i>
+                    </div>
                     <span id="live-stat-normal" class="text-2xl font-bold text-emerald-400">0</span>
+                    <span class="text-[10px] text-slate-500 block mt-0.5">Flows below attack threshold</span>
                 </div>
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                    <span class="text-xs text-rose-400 block mb-1">Intrusion Alerts</span>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-rose-400">Intrusion Alerts</span>
+                        <i class="fa-solid fa-triangle-exclamation text-rose-600 text-xs"></i>
+                    </div>
                     <span id="live-stat-attack" class="text-2xl font-bold text-rose-400">0</span>
+                    <span class="text-[10px] text-slate-500 block mt-0.5">Flows exceeding attack threshold</span>
                 </div>
             </div>
 
@@ -820,6 +850,7 @@
                         <div class="flex items-center space-x-2 mb-1">
                             <span class="badge-tag bg-amber-950 text-amber-300 border border-amber-800">Controlled Simulation</span>
                             <span class="badge-tag bg-emerald-950 text-emerald-300 border border-emerald-800">Ground-Truth Isolated</span>
+                            <span id="test-eval-scenario-badge" class="badge-tag bg-cyan-950 text-cyan-300 border border-cyan-800">Mixed 75/25</span>
                         </div>
                         <h3 class="text-base font-bold text-white flex items-center">
                             <i class="fa-solid fa-bullseye text-amber-400 mr-2"></i>TEST MODE Real-Time Ground-Truth Evaluation
@@ -887,6 +918,34 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Detailed Scenario Breakdown Counters -->
+                <div class="pt-3 border-t border-amber-900/40 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-center text-xs">
+                    <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] text-slate-400 block">Actual Normal</span>
+                        <span id="test-eval-act-normal" class="font-mono font-bold text-slate-200">0</span>
+                    </div>
+                    <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] text-slate-400 block">Actual Attack</span>
+                        <span id="test-eval-act-attack" class="font-mono font-bold text-slate-200">0</span>
+                    </div>
+                    <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] text-slate-400 block">Detected (TP)</span>
+                        <span id="test-eval-det-tp" class="font-mono font-bold text-emerald-400">0</span>
+                    </div>
+                    <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] text-slate-400 block">Missed (FN)</span>
+                        <span id="test-eval-miss-fn" class="font-mono font-bold text-amber-400">0</span>
+                    </div>
+                    <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] text-slate-400 block">False Alarms (FP)</span>
+                        <span id="test-eval-fa-fp" class="font-mono font-bold text-rose-400">0</span>
+                    </div>
+                    <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                        <span class="text-[10px] text-slate-400 block">Correct Benign (TN)</span>
+                        <span id="test-eval-ben-tn" class="font-mono font-bold text-emerald-400">0</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Wi-Fi Live Mode Information Card (Appears during Wi-Fi live capture) -->
@@ -908,9 +967,12 @@
                 <!-- Timeline & Pie -->
                 <div class="lg:col-span-5 space-y-6">
                     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                        <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center">
-                            <i class="fa-solid fa-chart-line text-cyan-400 mr-2"></i>Traffic Rate Timeline
-                        </h3>
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-sm font-bold text-slate-200 flex items-center">
+                                <i class="fa-solid fa-chart-line text-cyan-400 mr-2"></i>Traffic Rate Timeline
+                            </h3>
+                            <span class="text-[11px] text-slate-400 font-mono">Packets / Sec</span>
+                        </div>
                         <div class="h-44 flex justify-center items-center">
                             <canvas id="chart-live-timeline"></canvas>
                         </div>
@@ -938,14 +1000,14 @@
                         <table class="w-full text-left text-xs performance-table" id="table-live-flows">
                             <thead>
                                 <tr>
-                                    <th>Time</th>
-                                    <th>Source IP</th>
-                                    <th>Destination IP</th>
-                                    <th>Proto</th>
-                                    <th>Status</th>
-                                    <th>Category</th>
-                                    <th>Confidence</th>
-                                    <th>Action</th>
+                                    <th class="whitespace-nowrap">Time</th>
+                                    <th class="whitespace-nowrap">Source IP:Port</th>
+                                    <th class="whitespace-nowrap">Destination IP:Port</th>
+                                    <th class="whitespace-nowrap">Proto</th>
+                                    <th class="whitespace-nowrap">Status</th>
+                                    <th class="whitespace-nowrap">Category</th>
+                                    <th class="whitespace-nowrap">Confidence</th>
+                                    <th class="whitespace-nowrap text-center">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="live-flow-tbody">

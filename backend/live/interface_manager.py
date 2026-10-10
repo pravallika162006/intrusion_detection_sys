@@ -39,6 +39,7 @@ def get_network_interfaces() -> List[Dict[str, Any]]:
         interfaces.append({
             "name": iface_name,
             "description": desc,
+            "ip": ip_addr,
             "ip_address": ip_addr,
             "mac_address": mac_addr,
             "is_active": is_active,
@@ -53,6 +54,7 @@ def get_network_interfaces() -> List[Dict[str, Any]]:
                 interfaces.append({
                     "name": s_iface,
                     "description": f"Scapy Interface: {s_iface}",
+                    "ip": None,
                     "ip_address": None,
                     "mac_address": None,
                     "is_active": True,
@@ -60,6 +62,30 @@ def get_network_interfaces() -> List[Dict[str, Any]]:
     except Exception:
         pass
 
-    # Sort active interfaces first
-    interfaces.sort(key=lambda x: (not x["is_active"], x["name"]))
+    def _interface_sort_key(iface: Dict[str, Any]):
+        name_lower = iface["name"].lower()
+        ip = iface.get("ip_address") or ""
+        is_loopback = "loopback" in name_lower or ip == "127.0.0.1"
+        is_active = bool(iface.get("is_active", False))
+        has_real_ip = bool(ip and ip != "127.0.0.1" and not ip.startswith("169.254."))
+        is_wifi = any(w in name_lower for w in ["wi-fi", "wifi", "wireless", "wlan"])
+        is_eth = any(e in name_lower for e in ["ethernet", "eth", "local area"])
+
+        if is_loopback:
+            tier = 5
+        elif is_active and has_real_ip and is_wifi:
+            tier = 0  # Top priority: active Wi-Fi with valid IP
+        elif is_active and has_real_ip and is_eth:
+            tier = 1  # Active Ethernet with valid IP
+        elif is_active and has_real_ip:
+            tier = 2  # Other active interface with valid IP
+        elif is_active:
+            tier = 3  # Active interface without assigned IPv4
+        else:
+            tier = 4  # Inactive interface
+
+        return (tier, iface["name"])
+
+    # Sort prioritizing usable active physical interfaces
+    interfaces.sort(key=_interface_sort_key)
     return interfaces

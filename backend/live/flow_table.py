@@ -74,6 +74,7 @@ class FlowRecord:
         self.ground_truth_label: Optional[int] = None
         self.ground_truth_category: Optional[str] = None
         self.is_synthetic: bool = False
+        self.flow_id: Optional[str] = None
 
         # TCP Seq tracking for loss
         self.payload_ranges = {"forward": [], "reverse": []}
@@ -283,7 +284,10 @@ class FlowRecord:
 
     def to_dict(self) -> Dict[str, Any]:
         dur = round(self.last_time - self.start_time, 4)
+        # In UNSW-NB15 benchmark taxonomy, unanswered unidirectional flows evaluate to state='INT'
+        export_state = "INT" if (self.dpkts == 0 and not self.synack_available) else self.state
         return {
+            "flow_id": self.flow_id,
             "src_ip": self.forward_ip,
             "dst_ip": self.reverse_ip,
             "src_port": self.forward_port,
@@ -297,7 +301,7 @@ class FlowRecord:
             "sttl_available": self.sttl_available,
             "direction_known": self.direction_known,
             "direction_source": self.direction_source,
-            "state": self.state,
+            "state": export_state,
             "sloss": self.sloss,
             "dloss": self.dloss,
             "synack": self.synack if self.synack_available else None,
@@ -324,6 +328,7 @@ class FlowTableManager:
     def __init__(self, idle_timeout: float = 10.0, max_flows: int = 5000):
         self.idle_timeout = idle_timeout
         self.max_flows = max_flows
+        self.flow_seq = 0
         self.active_flows: Dict[FlowKey, FlowRecord] = {}
         self.recently_closed: Dict[FlowKey, float] = {}  # Tombstone cache to absorb trailing ACKs
         self.lock = threading.Lock()
@@ -335,6 +340,7 @@ class FlowTableManager:
         ground_truth_label: Optional[int] = None,
         ground_truth_category: Optional[str] = None,
         is_synthetic: bool = False,
+        pkt_time: Optional[float] = None,
     ):
         if not (IP in packet or IPv6 in packet):
             return
@@ -360,7 +366,7 @@ class FlowTableManager:
             proto = str(ip_layer.proto) if hasattr(ip_layer, "proto") else "other"
 
         key = FlowKey(src_ip, dst_ip, src_port, dst_port, proto)
-        now = time.time()
+        now = float(pkt_time) if pkt_time is not None else time.time()
 
         with self.lock:
             # Clean expired tombstone entries older than 3 seconds
@@ -378,7 +384,9 @@ class FlowTableManager:
                 if len(self.active_flows) >= self.max_flows:
                     self._purge_oldest()
 
+                self.flow_seq += 1
                 record = FlowRecord(key, now, sttl)
+                record.flow_id = f"flow_{self.flow_seq}_{int(now*1000)}"
                 self.active_flows[key] = record
             else:
                 record = self.active_flows[key]
@@ -396,7 +404,7 @@ class FlowTableManager:
     def expire_idle_flows(self, force: bool = False):
         """
         Scans active flows and expires flows exceeding idle_timeout (or 1.0s grace period for closing FIN/RST flows).
-        If force=True, expires all closing flows immediately.
+        If force=True, expires all flows immediately.
         """
         now = time.time()
         expired = []
@@ -406,13 +414,15 @@ class FlowTableManager:
                 # Closed FIN/RST flows use 1.0s grace period to capture trailing ACKs
                 is_closing = getattr(record, "closing", False) or record.state in ("FIN", "RST")
                 if force:
-                    timeout = 0.0
+                    should_expire = True
                 elif is_closing:
-                    timeout = 1.0
+                    should_expire = (now - record.last_time) >= 1.0
+                elif getattr(record, "is_synthetic", False):
+                    should_expire = (now - record.last_time) >= 1.5
                 else:
-                    timeout = self.idle_timeout
+                    should_expire = (now - record.last_time) >= self.idle_timeout
 
-                if (now - record.last_time) >= timeout:
+                if should_expire:
                     expired.append(record.to_dict())
                     del self.active_flows[key]
                     self.recently_closed[key] = now + 3.0
@@ -431,3 +441,4 @@ class FlowTableManager:
         with self.lock:
             self.active_flows.clear()
             self.recently_closed.clear()
+            self.flow_seq = 0

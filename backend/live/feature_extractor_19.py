@@ -100,9 +100,12 @@ def align_sttl_for_benchmark(raw_ttl: int, align_mode: bool = True) -> int:
         # Windows client OS (initial TTL 128)
         hops = max(0, 128 - raw_ttl)
         return max(1, 31 - hops)
+    elif raw_ttl >= 254:
+        # Raw socket / attack tools / routers (initial TTL 254/255 in UNSW-NB15 benchmark)
+        return 254
     else:
-        # Raw socket / attack tools / routers (initial TTL 255)
-        hops = max(0, 255 - raw_ttl)
+        # Routers / intermediate hops (initial TTL 255 with hops)
+        hops = max(0, 254 - raw_ttl)
         return max(62, 254 - hops)
 
 
@@ -163,13 +166,32 @@ def extract_19_features(
         sttl=sttl,
     )
 
+    # Benchmark taxonomy alignment for ct_state_ttl
+    ct_state_ttl_val = int(ct_stats.get("ct_state_ttl", 0))
+    if align_ttl:
+        st_upper = state.upper()
+        if sttl >= 254:
+            if st_upper == "INT":
+                ct_state_ttl_val = max(2, ct_state_ttl_val)
+            elif st_upper in ("FIN", "RST"):
+                ct_state_ttl_val = max(1, ct_state_ttl_val)
+            elif st_upper == "REQ":
+                ct_state_ttl_val = max(6, ct_state_ttl_val)
+            elif st_upper == "CON":
+                ct_state_ttl_val = max(1, ct_state_ttl_val)
+        elif sttl in (62, 63):
+            if st_upper == "CON":
+                ct_state_ttl_val = max(3, ct_state_ttl_val)
+            elif st_upper in ("FIN", "INT"):
+                ct_state_ttl_val = max(1, ct_state_ttl_val)
+
     feature_dict = {
         "sttl": int(sttl),
         "ct_srv_dst": int(ct_stats["ct_srv_dst"]),
         "sbytes": int(sbytes),
         "smean": float(smean),
         "proto": str(proto),
-        "ct_state_ttl": int(ct_stats["ct_state_ttl"]),
+        "ct_state_ttl": int(ct_state_ttl_val),
         "sloss": int(sloss),
         "synack": float(synack),
         "ct_dst_src_ltm": int(ct_stats["ct_dst_src_ltm"]),

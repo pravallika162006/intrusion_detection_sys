@@ -283,14 +283,22 @@ The web interface is structured into four functional modules:
 1. **Dataset Analysis Tab**: Upload custom CSV/Parquet network datasets, validate feature schemas (42 vs. 19), run batch inference, view confusion matrices, and export PDF summaries.
 2. **Performances Tab**: Interactive research comparison suite displaying benchmark tables across Phase 1, Phase 2, and Phase 3, feature importance bar charts, and a dynamic confusion matrix viewer.
 3. **Live Network Monitoring Tab**:
-   * Network adapter selection (Wi-Fi, Ethernet, Loopback).
-   * Live decision threshold slider ($0.50$ to $0.95$).
-   * Start Live Capture vs. Start Controlled TEST MODE buttons.
-   * Real-time packet, flow, normal, and alert counters.
-   * Real-time Traffic Rate Timeline and Distribution Charts.
-   * **TEST MODE Real-Time Ground-Truth Evaluation Card**: Displays a dynamic 2x2 confusion matrix (TP, FP, TN, FN) and live Accuracy, Precision, Recall, F1, and FPR badges during simulation.
-   * **Wi-Fi Mode Information Card**: Transparent context regarding passive packet capture, Npcap integration, and automated statistical estimates.
-   * Live flow table with per-flow inspection modals.
+   * **Intelligent Adapter Discovery**: Automatically prioritizes active physical interfaces (`Wi-Fi`, `Ethernet`) with resolved IP addresses ahead of virtual/loopback adapters.
+   * **Controlled Scenario Selector**: Select from 4 discrete TEST MODE simulation scenarios:
+     * `Mixed 75/25`: Standard evaluation with 75% benign and 25% attack traffic.
+     * `Mixed 50/50`: Balanced benchmark evaluation with 50% benign and 50% attack traffic.
+     * `Normal Only`: 100% benign traffic validation (verifying zero false alarms).
+     * `Attack Only`: 100% threat traffic detection (verifying attack recall across DoS, Port Scans, and Web Exploits).
+   * **Operating Decision Threshold Slider**: Dynamic real-time adjustment ($0.50$ to $0.95$, default $0.80$) with sensitivity guide and validation baseline insight.
+   * **Disambiguated System Telemetry Cards**:
+     * **Packets Captured**: Total raw packets sniffed by Scapy.
+     * **Processed Flows**: Total completed flows reconstructed and evaluated by the 19-feature model.
+     * **Normal Predictions**: Flows classified below the attack threshold.
+     * **Intrusion Alerts**: Flows classified above the attack threshold.
+   * **Traffic Rate Timeline**: Displays genuine real-time packet throughput (Packets / Sec) computed from arrival deltas over time without synthetic placeholding.
+   * **TEST MODE Real-Time Ground-Truth Evaluation Card**: Displays a dynamic 2x2 confusion matrix (TP, FP, TN, FN), primary rates (Accuracy, Precision, Recall, F1, FPR, FNR), and detailed scenario breakdown counters (Actual Normal, Actual Attack, Correct Detections, Missed Attacks, False Alarms, Correct Benign).
+   * **Wi-Fi Mode Information Card**: Operational guidance on passive Npcap packet capture and benchmark reference alignment.
+   * **Live Attack Alerts & Flows Table**: Live-streamed flow records with unique row tracking, aligned columns, and per-flow inspection modals.
 4. **AI Security Advice Tab**: Contextual threat analysis, severity categorization, attack explanations, and investigation guidance for flagged alerts.
 
 *Visual Artifacts*: Pre-generated feature importance plots and ranking visualizations are available in `results/phase2/plots/`.

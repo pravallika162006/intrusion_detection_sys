@@ -65,15 +65,18 @@ async def start_monitoring(req: StartCaptureRequest):
         capturer.start_capture(
             interface_name=req.interface_name,
             test_mode=req.test_mode,
+            test_scenario=req.test_scenario or "mixed_75_25",
             event_callback=_ws_event_callback,
             threshold=req.threshold,
         )
-        mode_str = "Controlled TEST MODE" if req.test_mode else f"Live Capture ({req.interface_name})"
+        scenario_desc = f" [{req.test_scenario}]" if req.test_mode else ""
+        mode_str = f"Controlled TEST MODE{scenario_desc}" if req.test_mode else f"Live Capture ({req.interface_name})"
         return {
             "status": "RUNNING",
             "message": f"Network monitoring started in {mode_str}.",
             "interface": req.interface_name,
             "test_mode": req.test_mode,
+            "test_scenario": req.test_scenario,
             "threshold": req.threshold,
         }
     except Exception as e:
@@ -98,20 +101,9 @@ def set_monitoring_threshold(req: SetThresholdRequest):
 
 @router.post("/stop")
 def stop_monitoring():
-    """Stops live network monitoring and returns final session summary."""
+    """Stops live network monitoring, flushes all pending flows, and returns final session summary."""
     try:
-        summary = {
-            "status": "STOPPED",
-            "message": "Network monitoring stopped.",
-            "interface_name": capturer.interface_name,
-            "test_mode": capturer.test_mode,
-            "threshold": capturer.decision_threshold,
-            "packet_count": capturer.packet_count,
-            "flow_count": capturer.flow_count,
-            "normal_count": capturer.normal_count,
-            "attack_count": capturer.attack_count,
-        }
-        capturer.stop_capture()
+        summary = capturer.stop_capture()
         return summary
     except Exception as e:
         logger.error(f"Error stopping monitoring: {e}")
@@ -120,17 +112,29 @@ def stop_monitoring():
 
 @router.get("/status")
 def get_monitoring_status():
-    """Returns real-time packet, flow, and detection totals."""
+    """Returns real-time packet, flow, detection totals, and test evaluation metrics."""
     return {
         "is_running": capturer.is_running,
         "test_mode": capturer.test_mode,
+        "test_scenario": getattr(capturer, "test_scenario", "mixed_75_25"),
         "interface": capturer.interface_name,
         "threshold": capturer.decision_threshold,
         "packet_count": capturer.packet_count,
         "flow_count": capturer.flow_count,
         "normal_count": capturer.normal_count,
         "attack_count": capturer.attack_count,
+        "test_evaluation": capturer.get_test_evaluation_summary(),
     }
+
+
+@router.post("/test-batch")
+def run_test_batch(scenario: str = "mixed_75_25", count: int = 100):
+    """Executes an automated, repeatable batch of flows with ground truth for validation."""
+    try:
+        return capturer.run_test_scenario_batch(scenario=scenario, count=count)
+    except Exception as e:
+        logger.error(f"Error executing test batch: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/ai-recommendation", response_model=AIRecommendationResponse)

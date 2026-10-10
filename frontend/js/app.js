@@ -843,7 +843,9 @@ async function fetchInterfaces() {
         if (Array.isArray(ifaces) && ifaces.length > 0) {
             select.innerHTML = "";
             ifaces.forEach(i => {
-                select.innerHTML += `<option value="${i.name}">${i.description || i.name} (${i.ip || 'No IP'})</option>`;
+                const ipLabel = i.ip_address || i.ip;
+                const desc = ipLabel ? `${i.name} (${ipLabel})` : i.name;
+                select.innerHTML += `<option value="${i.name}">${desc}</option>`;
             });
         }
     } catch (err) {
@@ -870,6 +872,7 @@ async function onThresholdChange(val) {
 
 async function startLiveMonitoring(isTestMode = false) {
     const iface = document.getElementById("select-interface").value;
+    const scenario = document.getElementById("select-test-scenario")?.value || "mixed_75_25";
     const thresholdInput = document.getElementById("input-threshold");
     const thresholdVal = thresholdInput ? parseFloat(thresholdInput.value) : 0.80;
 
@@ -880,6 +883,7 @@ async function startLiveMonitoring(isTestMode = false) {
             body: JSON.stringify({
                 interface_name: iface,
                 test_mode: isTestMode,
+                test_scenario: scenario,
                 threshold: thresholdVal,
             }),
         });
@@ -888,6 +892,8 @@ async function startLiveMonitoring(isTestMode = false) {
 
         sessionActive = true;
         sessionStartTime = new Date();
+        lastPacketCount = 0;
+        lastPacketTime = null;
 
         document.getElementById("btn-start-live").disabled = true;
         document.getElementById("btn-start-test").disabled = true;
@@ -897,12 +903,18 @@ async function startLiveMonitoring(isTestMode = false) {
         const evalCard = document.getElementById("test-mode-eval-card");
         const wifiCard = document.getElementById("wifi-mode-info-card");
 
+        // Reset live counters
+        ["packets", "flows", "normal", "attack"].forEach(id => {
+            const el = document.getElementById(`live-stat-${id}`);
+            if (el) el.textContent = "0";
+        });
+
         if (isTestMode) {
             if (badgeBar) badgeBar.classList.remove("hidden");
             if (evalCard) evalCard.classList.remove("hidden");
             if (wifiCard) wifiCard.classList.add("hidden");
             // Reset evaluation UI counters
-            ["total", "tp", "fp", "tn", "fn"].forEach(id => {
+            ["total", "tp", "fp", "tn", "fn", "act-normal", "act-attack", "det-tp", "miss-fn", "fa-fp", "ben-tn"].forEach(id => {
                 const el = document.getElementById(`test-eval-${id}`);
                 if (el) el.textContent = "0";
             });
@@ -910,10 +922,26 @@ async function startLiveMonitoring(isTestMode = false) {
                 const el = document.getElementById(`test-eval-${id}`);
                 if (el) el.textContent = "0.0%";
             });
+            const badge = document.getElementById("test-eval-scenario-badge");
+            if (badge) {
+                const scenarioNames = {
+                    "mixed_75_25": "Mixed 75/25",
+                    "mixed_50_50": "Mixed 50/50",
+                    "normal_only": "Normal Only (100% Benign)",
+                    "attack_only": "Attack Only (100% Threats)"
+                };
+                badge.textContent = scenarioNames[scenario] || scenario;
+            }
         } else {
             if (badgeBar) badgeBar.classList.add("hidden");
             if (evalCard) evalCard.classList.add("hidden");
             if (wifiCard) wifiCard.classList.remove("hidden");
+        }
+
+        // Reset Live Table placeholder
+        const tbody = document.getElementById("live-flow-tbody");
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-cyan-400 py-6 font-semibold animate-pulse">Monitoring active... waiting for network flows.</td></tr>`;
         }
 
         initWebSocket();
@@ -931,13 +959,59 @@ async function stopLiveMonitoring() {
         document.getElementById("btn-start-live").disabled = false;
         document.getElementById("btn-start-test").disabled = false;
         document.getElementById("btn-stop-live").disabled = true;
-        const badgeBar = document.getElementById("test-mode-badge-bar");
-        if (badgeBar) badgeBar.classList.add("hidden");
+
+        if (data.test_evaluation) {
+            renderTestEvaluation(data.test_evaluation);
+        }
 
         showSessionSummaryModal(data);
     } catch (err) {
         alert(`Error stopping capture: ${err.message}`);
     }
+}
+
+function renderTestEvaluation(te) {
+    if (!te) return;
+    const evalCard = document.getElementById("test-mode-eval-card");
+    if (evalCard) evalCard.classList.remove("hidden");
+    const elTotal = document.getElementById("test-eval-total");
+    const elTp = document.getElementById("test-eval-tp");
+    const elFp = document.getElementById("test-eval-fp");
+    const elTn = document.getElementById("test-eval-tn");
+    const elFn = document.getElementById("test-eval-fn");
+    const elAcc = document.getElementById("test-eval-acc");
+    const elPrec = document.getElementById("test-eval-prec");
+    const elRec = document.getElementById("test-eval-rec");
+    const elF1 = document.getElementById("test-eval-f1");
+    const elFpr = document.getElementById("test-eval-fpr");
+    const elFnr = document.getElementById("test-eval-fnr");
+
+    if (elTotal) elTotal.textContent = (te.total || 0).toLocaleString();
+    if (elTp) elTp.textContent = (te.tp || 0).toLocaleString();
+    if (elFp) elFp.textContent = (te.fp || 0).toLocaleString();
+    if (elTn) elTn.textContent = (te.tn || 0).toLocaleString();
+    if (elFn) elFn.textContent = (te.fn || 0).toLocaleString();
+    if (elAcc) elAcc.textContent = `${te.accuracy}%`;
+    if (elPrec) elPrec.textContent = `${te.precision}%`;
+    if (elRec) elRec.textContent = `${te.recall}%`;
+    if (elF1) elF1.textContent = `${te.f1}%`;
+    if (elFpr) elFpr.textContent = `${te.fpr}%`;
+    if (elFnr) elFnr.textContent = `${te.fnr}%`;
+
+    // Detailed scenario breakdown counters
+    const elActNorm = document.getElementById("test-eval-act-normal");
+    const elActAtk = document.getElementById("test-eval-act-attack");
+    const elDetTp = document.getElementById("test-eval-det-tp");
+    const elMissFn = document.getElementById("test-eval-miss-fn");
+    const elFaFp = document.getElementById("test-eval-fa-fp");
+    const elBenTn = document.getElementById("test-eval-ben-tn");
+
+    if (elActNorm) elActNorm.textContent = (te.actual_normal !== undefined ? te.actual_normal : (te.tn + te.fp)).toLocaleString();
+    if (elActAtk) elActAtk.textContent = (te.actual_attack !== undefined ? te.actual_attack : (te.tp + te.fn)).toLocaleString();
+    if (elDetTp) elDetTp.textContent = (te.tp || 0).toLocaleString();
+    if (elMissFn) elMissFn.textContent = (te.fn || 0).toLocaleString();
+    if (elFaFp) elFaFp.textContent = (te.fp || 0).toLocaleString();
+    if (elBenTn) elBenTn.textContent = (te.tn || 0).toLocaleString();
 }
 
 function initWebSocket() {
@@ -978,88 +1052,75 @@ function handleLiveFlowEvent(data) {
     const isAttack = (data.binary_class === 1 || data.prediction === "Attack");
     flowCache[data.flow_id] = data;
 
-    // Increment metrics
-    const pEl = document.getElementById("live-stat-packets");
-    const fEl = document.getElementById("live-stat-flows");
-    const nEl = document.getElementById("live-stat-normal");
-    const aEl = document.getElementById("live-stat-attack");
+    // Update system summary metrics from backend authority
+    if (data.system_totals) {
+        const pEl = document.getElementById("live-stat-packets");
+        const fEl = document.getElementById("live-stat-flows");
+        const nEl = document.getElementById("live-stat-normal");
+        const aEl = document.getElementById("live-stat-attack");
 
-    if (fEl) fEl.textContent = (parseInt(fEl.textContent) + 1).toLocaleString();
-    if (pEl) pEl.textContent = (parseInt(pEl.textContent) + (data.flow_info?.spkts || 1) + (data.flow_info?.dpkts || 0)).toLocaleString();
-
-    if (isAttack) {
-        if (aEl) aEl.textContent = (parseInt(aEl.textContent) + 1).toLocaleString();
-    } else {
-        if (nEl) nEl.textContent = (parseInt(nEl.textContent) + 1).toLocaleString();
+        if (pEl) pEl.textContent = (data.system_totals.packet_count || 0).toLocaleString();
+        if (fEl) fEl.textContent = (data.system_totals.flow_count || 0).toLocaleString();
+        if (nEl) nEl.textContent = (data.system_totals.normal_count || 0).toLocaleString();
+        if (aEl) aEl.textContent = (data.system_totals.attack_count || 0).toLocaleString();
     }
 
     // Update TEST MODE ground-truth evaluation card if telemetry present
     if (data.test_evaluation) {
-        const te = data.test_evaluation;
-        const evalCard = document.getElementById("test-mode-eval-card");
-        if (evalCard) evalCard.classList.remove("hidden");
-        const elTotal = document.getElementById("test-eval-total");
-        const elTp = document.getElementById("test-eval-tp");
-        const elFp = document.getElementById("test-eval-fp");
-        const elTn = document.getElementById("test-eval-tn");
-        const elFn = document.getElementById("test-eval-fn");
-        const elAcc = document.getElementById("test-eval-acc");
-        const elPrec = document.getElementById("test-eval-prec");
-        const elRec = document.getElementById("test-eval-rec");
-        const elF1 = document.getElementById("test-eval-f1");
-        const elFpr = document.getElementById("test-eval-fpr");
-        const elFnr = document.getElementById("test-eval-fnr");
-
-        if (elTotal) elTotal.textContent = te.total.toLocaleString();
-        if (elTp) elTp.textContent = te.tp.toLocaleString();
-        if (elFp) elFp.textContent = te.fp.toLocaleString();
-        if (elTn) elTn.textContent = te.tn.toLocaleString();
-        if (elFn) elFn.textContent = te.fn.toLocaleString();
-        if (elAcc) elAcc.textContent = `${te.accuracy}%`;
-        if (elPrec) elPrec.textContent = `${te.precision}%`;
-        if (elRec) elRec.textContent = `${te.recall}%`;
-        if (elF1) elF1.textContent = `${te.f1}%`;
-        if (elFpr) elFpr.textContent = `${te.fpr}%`;
-        if (elFnr) elFnr.textContent = `${te.fnr}%`;
+        renderTestEvaluation(data.test_evaluation);
     }
 
-    // Update live table
+    // Update live table with stable row identifiers to prevent duplicates
     const tbody = document.getElementById("live-flow-tbody");
     if (tbody) {
-        const row = document.createElement("tr");
+        const rowId = `flow-row-${data.flow_id}`;
+        let row = document.getElementById(rowId);
+        const isNew = !row;
+        if (isNew) {
+            row = document.createElement("tr");
+            row.id = rowId;
+        }
         row.className = isAttack ? "bg-rose-950/20" : "";
         let statusBadge = "";
         if (!isAttack) {
-            statusBadge = `<span class="badge-tag bg-emerald-950 text-emerald-400 border border-emerald-800">Normal</span>`;
+            statusBadge = `<span class="badge-tag bg-emerald-950 text-emerald-400 border border-emerald-800 whitespace-nowrap">Normal</span>`;
         } else if (data.status && data.status.includes("Potential Anomaly")) {
-            statusBadge = `<span class="badge-tag bg-amber-950 text-amber-400 border border-amber-800">Potential Anomaly</span>`;
+            statusBadge = `<span class="badge-tag bg-amber-950 text-amber-400 border border-amber-800 whitespace-nowrap">Potential Anomaly</span>`;
         } else {
-            statusBadge = `<span class="badge-tag bg-rose-950 text-rose-400 border border-rose-800">${data.status || 'Attack Alert'}</span>`;
+            statusBadge = `<span class="badge-tag bg-rose-950 text-rose-400 border border-rose-800 whitespace-nowrap">${data.status || 'Attack Alert'}</span>`;
         }
         const confPct = ((data.confidence !== undefined ? data.confidence : 1.0) * 100).toFixed(1);
+        const srcEndpoint = `${data.src_ip}:${data.src_port || 0}`;
+        const dstEndpoint = `${data.dst_ip}:${data.dst_port || 0}`;
+
         row.innerHTML = `
-            <td class="font-mono text-[11px] text-slate-400">${new Date().toLocaleTimeString()}</td>
-            <td class="font-mono text-xs">${data.src_ip}:${data.src_port || 0}</td>
-            <td class="font-mono text-xs">${data.dst_ip}:${data.dst_port || 0}</td>
-            <td class="uppercase text-[11px] text-slate-400">${data.proto || 'tcp'}</td>
-            <td>${statusBadge}</td>
-            <td class="font-bold ${isAttack ? 'text-rose-300' : 'text-slate-400'}">${data.attack_category}</td>
-            <td class="font-mono text-xs text-cyan-400">${confPct}%</td>
-            <td>
+            <td class="font-mono text-[11px] text-slate-400 whitespace-nowrap">${new Date().toLocaleTimeString()}</td>
+            <td class="font-mono text-xs whitespace-nowrap">${srcEndpoint}</td>
+            <td class="font-mono text-xs whitespace-nowrap">${dstEndpoint}</td>
+            <td class="uppercase text-[11px] text-slate-400 whitespace-nowrap">${data.proto || 'tcp'}</td>
+            <td class="whitespace-nowrap">${statusBadge}</td>
+            <td class="font-bold whitespace-nowrap ${isAttack ? 'text-rose-300' : 'text-slate-400'}">${data.attack_category}</td>
+            <td class="font-mono text-xs text-cyan-400 whitespace-nowrap">${confPct}%</td>
+            <td class="whitespace-nowrap text-center">
                 <button onclick="inspectLiveFlow('${data.flow_id}')" class="bg-slate-800 hover:bg-cyan-900 text-cyan-300 px-2.5 py-1 rounded text-[11px] font-semibold border border-slate-700 transition">
                     Inspect
                 </button>
             </td>
         `;
-        if (tbody.children.length === 1 && tbody.children[0].innerText.includes("Click")) {
-            tbody.innerHTML = "";
+        if (isNew) {
+            if (tbody.children.length === 1 && (tbody.children[0].innerText.includes("Click") || tbody.children[0].innerText.includes("Monitoring active"))) {
+                tbody.innerHTML = "";
+            }
+            tbody.insertBefore(row, tbody.firstChild);
+            if (tbody.children.length > 50) tbody.removeChild(tbody.lastChild);
         }
-        tbody.insertBefore(row, tbody.firstChild);
-        if (tbody.children.length > 50) tbody.removeChild(tbody.lastChild);
     }
 
-    updateLiveCharts();
+    updateLiveCharts(data);
 }
+
+let lastPacketCount = 0;
+let lastPacketTime = null;
 
 function initLiveCharts() {
     const ctxTimeline = document.getElementById("chart-live-timeline");
@@ -1076,16 +1137,33 @@ function initLiveCharts() {
                     borderColor: "#0284c7",
                     backgroundColor: "rgba(2, 132, 199, 0.15)",
                     fill: true,
-                    tension: 0.4,
+                    tension: 0.3,
+                    borderWidth: 2,
+                    pointRadius: 2,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.parsed.y} pkts/sec`
+                        }
+                    }
+                },
                 scales: {
-                    y: { ticks: { color: "#64748b" }, grid: { color: "rgba(51, 65, 85, 0.2)" } },
-                    x: { display: false }
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: "#64748b", font: { size: 10 } },
+                        grid: { color: "rgba(51, 65, 85, 0.2)" },
+                        title: { display: true, text: "Packets / Sec", color: "#64748b", font: { size: 10 } }
+                    },
+                    x: {
+                        ticks: { color: "#64748b", font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 5 },
+                        grid: { display: false }
+                    }
                 }
             }
         });
@@ -1113,7 +1191,7 @@ function initLiveCharts() {
     }
 }
 
-function updateLiveCharts() {
+function updateLiveCharts(data) {
     const normalCount = parseInt(document.getElementById("live-stat-normal")?.textContent || "0");
     const attackCount = parseInt(document.getElementById("live-stat-attack")?.textContent || "0");
 
@@ -1122,11 +1200,29 @@ function updateLiveCharts() {
         charts.livePie.update();
     }
 
-    if (charts.liveTimeline) {
-        const randFlow = Math.floor(Math.random() * 5) + 1;
-        charts.liveTimeline.data.datasets[0].data.shift();
-        charts.liveTimeline.data.datasets[0].data.push(randFlow);
-        charts.liveTimeline.update();
+    if (charts.liveTimeline && data && data.system_totals) {
+        const now = Date.now();
+        const currentPackets = data.system_totals.packet_count || 0;
+        let rate = 0;
+        if (lastPacketTime !== null) {
+            const dt = (now - lastPacketTime) / 1000.0;
+            if (dt > 0.05) {
+                rate = Math.max(0, Math.round((currentPackets - lastPacketCount) / dt));
+            }
+        }
+        lastPacketCount = currentPackets;
+        lastPacketTime = now;
+
+        const timeLabel = new Date().toLocaleTimeString();
+        const dataset = charts.liveTimeline.data.datasets[0];
+        const labels = charts.liveTimeline.data.labels;
+
+        labels.shift();
+        labels.push(timeLabel);
+        dataset.data.shift();
+        dataset.data.push(rate);
+
+        charts.liveTimeline.update("none");
     }
 }
 

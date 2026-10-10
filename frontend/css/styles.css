@@ -96,12 +96,19 @@ canvas {
     padding: 10px 12px;
     border-bottom: 1px solid #1e293b;
     background-color: rgba(15, 23, 42, 0.95);
+    white-space: nowrap;
 }
 
 .performance-table td {
     padding: 10px 12px;
     border-bottom: 1px solid #1e293b;
     font-size: 12px;
+    white-space: nowrap;
+}
+
+#table-live-flows th,
+#table-live-flows td {
+    white-space: nowrap;
 }
 
 .performance-table tr:hover {

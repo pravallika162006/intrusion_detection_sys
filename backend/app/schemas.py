@@ -59,6 +59,7 @@ class DatasetPredictionResponse(BaseModel):
 class NetworkInterfaceInfo(BaseModel):
     name: str
     description: str
+    ip: Optional[str] = None
     ip_address: Optional[str] = None
     mac_address: Optional[str] = None
     is_active: bool
@@ -66,6 +67,7 @@ class NetworkInterfaceInfo(BaseModel):
 class StartCaptureRequest(BaseModel):
     interface_name: str
     test_mode: bool = False
+    test_scenario: Optional[str] = "mixed_75_25"  # "normal_only", "attack_only", "mixed_50_50", "mixed_75_25"
     binary_model: str = "xgboost_dt"
     multiclass_model: str = "ann"
     threshold: float = 0.80

@@ -178,7 +178,7 @@ class LiveDetector:
                             m_class_idx = int(np.argmax(m_probs))
                     else:
                         m_class_idx = int(np.argmax(m_probs))
-                    confidence = float(m_probs[m_class_idx])
+                    category_confidence = float(m_probs[m_class_idx])
                 else:
                     if hasattr(self.multiclass_model, "predict_proba"):
                         m_probs = self.multiclass_model.predict_proba(X_proc)[0]
@@ -192,9 +192,10 @@ class LiveDetector:
                                 m_class_idx = int(np.argmax(m_probs))
                         else:
                             m_class_idx = int(np.argmax(m_probs))
-                        confidence = float(m_probs[m_class_idx])
+                        category_confidence = float(m_probs[m_class_idx])
                     else:
                         m_class_idx = int(self.multiclass_model.predict(X_proc)[0])
+                        category_confidence = 1.0
 
                 if self.label_encoder:
                     attack_cat = str(self.label_encoder.classes_[m_class_idx])
