@@ -4,7 +4,7 @@ Fits ColumnTransformer ONLY on training partition (TRAIN-1) to prevent data leak
 """
 
 from pathlib import Path
-from typing import Tuple, Dict, Any, List
+from typing import Tuple, Dict, Any, List, Optional
 import joblib
 import numpy as np
 import pandas as pd
@@ -37,7 +37,7 @@ def create_19_column_transformer(
     cat_in_19 = [f for f in selected_19_features if f in CATEGORICAL_FEATURES]
     num_in_19 = [f for f in selected_19_features if f not in CATEGORICAL_FEATURES]
 
-    transformers = []
+    transformers: List[Tuple[str, Any, List[str]]] = []
     if cat_in_19:
         transformers.append(
             ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), cat_in_19)
@@ -52,9 +52,9 @@ def create_19_column_transformer(
 
 def prepare_19_preprocessed_data(
     df_train: pd.DataFrame,
-    df_val: pd.DataFrame = None,
-    df_test: pd.DataFrame = None,
-    selected_19_features: List[str] = None,
+    df_val: Optional[pd.DataFrame] = None,
+    df_test: Optional[pd.DataFrame] = None,
+    selected_19_features: Optional[List[str]] = None,
 ) -> Tuple[
     np.ndarray,
     np.ndarray,
@@ -93,27 +93,30 @@ def prepare_19_preprocessed_data(
         df_test = df_val
         df_train, df_val = split_training_dataset(df_train)
 
+    if df_val is None or df_test is None:
+        raise ValueError("Both df_val and df_test must be provided or derivable from df_train.")
+
     # Extract 19 feature subset
     X_train_raw = df_train[selected_19_features].copy()
     X_val_raw = df_val[selected_19_features].copy()
     X_test_raw = df_test[selected_19_features].copy()
 
-    y_bin_train = df_train[BINARY_TARGET].values
-    y_bin_val = df_val[BINARY_TARGET].values
-    y_bin_test = df_test[BINARY_TARGET].values
+    y_bin_train = np.asarray(df_train[BINARY_TARGET].values)
+    y_bin_val = np.asarray(df_val[BINARY_TARGET].values)
+    y_bin_test = np.asarray(df_test[BINARY_TARGET].values)
 
-    y_multi_train_raw = df_train[MULTICLASS_TARGET].values
-    y_multi_val_raw = df_val[MULTICLASS_TARGET].values
-    y_multi_test_raw = df_test[MULTICLASS_TARGET].values
+    y_multi_train_raw = np.asarray(df_train[MULTICLASS_TARGET].values)
+    y_multi_val_raw = np.asarray(df_val[MULTICLASS_TARGET].values)
+    y_multi_test_raw = np.asarray(df_test[MULTICLASS_TARGET].values)
 
     # Build and Fit 19-feature Transformer strictly on X_train_raw
     preprocessor, cat_in_19, num_in_19 = create_19_column_transformer(selected_19_features)
 
     logger.info("Fitting 19-feature ColumnTransformer ONLY on training partition (TRAIN-1)...")
     with Timer() as timer:
-        X_train_proc = preprocessor.fit_transform(X_train_raw)
-        X_val_proc = preprocessor.transform(X_val_raw)
-        X_test_proc = preprocessor.transform(X_test_raw)
+        X_train_proc = np.asarray(preprocessor.fit_transform(X_train_raw))
+        X_val_proc = np.asarray(preprocessor.transform(X_val_raw))
+        X_test_proc = np.asarray(preprocessor.transform(X_test_raw))
 
     logger.info(f"19-feature transformation completed in {timer.interval:.2f} seconds.")
     logger.info(f"  - Original selected feature count: 19")
@@ -124,9 +127,9 @@ def prepare_19_preprocessed_data(
     # Build and Fit LabelEncoder for Multiclass Target strictly on y_multi_train_raw
     logger.info("Fitting LabelEncoder ONLY on training multiclass target...")
     label_encoder = LabelEncoder()
-    y_multi_train = label_encoder.fit_transform(y_multi_train_raw)
-    y_multi_val = label_encoder.transform(y_multi_val_raw)
-    y_multi_test = label_encoder.transform(y_multi_test_raw)
+    y_multi_train = np.asarray(label_encoder.fit_transform(y_multi_train_raw))
+    y_multi_val = np.asarray(label_encoder.transform(y_multi_val_raw))
+    y_multi_test = np.asarray(label_encoder.transform(y_multi_test_raw))
 
     # Save fitted 19-feature preprocessing artifacts
     preprocessor_path = PREPROCESSING_PHASE2_DIR / "preprocessor_19.joblib"

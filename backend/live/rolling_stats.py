@@ -85,15 +85,15 @@ class RollingStatsTracker:
             if item["src_ip"] == src_ip and item["dst_port"] == dst_port:
                 ct_src_dport_ltm += 1
 
-        # In UNSW-NB15, ct_state_ttl has minimum 0 (50%+ of normal traffic has 0).
-        # Other ct_* features have minimum 1 counting the active connection.
+        # In UNSW-NB15, ct_state_ttl has minimum 0 (50%+ of normal traffic has 0, max 6).
+        # Other ct_* features have minimum 1 and benchmark maximums matching preprocessor MinMaxScaler bounds.
         return {
-            "ct_srv_dst": max(1, ct_srv_dst + 1),
-            "ct_dst_sport_ltm": max(1, ct_dst_sport_ltm + 1),
-            "ct_dst_src_ltm": max(1, ct_dst_src_ltm + 1),
-            "ct_state_ttl": ct_state_ttl,
-            "ct_srv_src": max(1, ct_srv_src + 1),
-            "ct_src_dport_ltm": max(1, ct_src_dport_ltm + 1),
+            "ct_srv_dst": min(62, max(1, ct_srv_dst + 1)),
+            "ct_dst_sport_ltm": min(46, max(1, ct_dst_sport_ltm + 1)),
+            "ct_dst_src_ltm": min(65, max(1, ct_dst_src_ltm + 1)),
+            "ct_state_ttl": min(6, ct_state_ttl),
+            "ct_srv_src": min(63, max(1, ct_srv_src + 1)),
+            "ct_src_dport_ltm": min(51, max(1, ct_src_dport_ltm + 1)),
         }
 
     def clear(self):

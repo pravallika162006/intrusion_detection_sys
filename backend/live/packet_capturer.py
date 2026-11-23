@@ -375,6 +375,9 @@ class PacketCapturerManager:
         """
         t = base_time if base_time is not None else time.time()
         sp = 30000 + (self.flow_count % 30000)
+        # Realistic network addressing: varied attacker hosts across attack subnet and varied clients
+        atk_src = f"175.45.176.{10 + (self.flow_count % 30)}"
+        ben_src = f"192.168.1.{10 + (self.flow_count % 30)}"
 
         if is_attack:
             atk_type = random.choice(["dos", "exploit", "generic", "fuzzers", "recon"])
@@ -382,79 +385,80 @@ class PacketCapturerManager:
                 gt_cat = "DoS (SYN Flood)"
                 flood_port = random.choice([8080, 8888, 9000, 1337, 31337])
                 num_pkts = random.randint(6, 10)
-                burst_delta = random.uniform(0.00003, 0.00006)
+                # Wire-speed burst matching UNSW-NB15 DoS rate distribution (50k - 125k pkts/s)
+                burst_delta = random.uniform(0.000008, 0.00002)
                 for j in range(num_pkts):
                     self._on_packet_received(
-                        IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=flood_port, flags="S", seq=5000+j),
+                        IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=flood_port, flags="S", seq=5000+j),
                         ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t + j * burst_delta
                     )
             elif atk_type == "exploit":
                 gt_cat = "Web Exploit (SQL Injection)"
-                self._on_packet_received(IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="S", seq=1000), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t)
-                self._on_packet_received(IP(src="192.168.1.1", dst="10.0.0.99", ttl=64)/TCP(sport=80, dport=sp, flags="SA", seq=2000, ack=1001), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.01)
-                self._on_packet_received(IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="A", seq=1001, ack=2001), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.02)
+                self._on_packet_received(IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="S", seq=1000), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t)
+                self._on_packet_received(IP(src="192.168.1.1", dst=atk_src, ttl=64)/TCP(sport=80, dport=sp, flags="SA", seq=2000, ack=1001), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.01)
+                self._on_packet_received(IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="A", seq=1001, ack=2001), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.02)
                 p_load = b"GET /admin?id=1' UNION SELECT username,password FROM users-- HTTP/1.1\r\n\r\n"
-                self._on_packet_received(IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="PA", seq=1001, ack=2001)/Raw(p_load), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.03)
+                self._on_packet_received(IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="PA", seq=1001, ack=2001)/Raw(p_load), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.03)
                 r_load = b"HTTP/1.1 500 Internal Server Error\r\n\r\nSQL Exception"
-                self._on_packet_received(IP(src="192.168.1.1", dst="10.0.0.99", ttl=64)/TCP(sport=80, dport=sp, flags="PA", seq=2001, ack=1001+len(p_load))/Raw(r_load), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.04)
-                self._on_packet_received(IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="FA", seq=1001+len(p_load), ack=2001+len(r_load)), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.05)
-                self._on_packet_received(IP(src="192.168.1.1", dst="10.0.0.99", ttl=64)/TCP(sport=80, dport=sp, flags="FA", seq=2001+len(r_load), ack=1002+len(p_load)), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.06)
-                self._on_packet_received(IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="A", seq=1002+len(p_load), ack=2002+len(r_load)), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.07)
+                self._on_packet_received(IP(src="192.168.1.1", dst=atk_src, ttl=64)/TCP(sport=80, dport=sp, flags="PA", seq=2001, ack=1001+len(p_load))/Raw(r_load), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.04)
+                self._on_packet_received(IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="FA", seq=1001+len(p_load), ack=2001+len(r_load)), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.05)
+                self._on_packet_received(IP(src="192.168.1.1", dst=atk_src, ttl=64)/TCP(sport=80, dport=sp, flags="FA", seq=2001+len(r_load), ack=1002+len(p_load)), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.06)
+                self._on_packet_received(IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="A", seq=1002+len(p_load), ack=2002+len(r_load)), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.07)
             elif atk_type == "generic":
                 gt_cat = "Generic (UDP Flood)"
                 for j in range(8):
                     self._on_packet_received(
-                        IP(src="10.0.0.99", dst="8.8.8.8", ttl=254)/UDP(sport=sp, dport=53)/Raw(b"\xaa\xbb\x01\x00\x00\x01probe.domain"),
+                        IP(src=atk_src, dst="8.8.8.8", ttl=254)/UDP(sport=sp, dport=53)/Raw(b"\xaa\xbb\x01\x00\x00\x01probe.domain"),
                         ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t + j*0.0005
                     )
             elif atk_type == "fuzzers":
                 gt_cat = "Fuzzers (Malformed TCP)"
-                self._on_packet_received(IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="S", seq=100), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t)
-                self._on_packet_received(IP(src="192.168.1.1", dst="10.0.0.99", ttl=64)/TCP(sport=80, dport=sp, flags="SA", seq=200, ack=101), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.01)
-                self._on_packet_received(IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="A", seq=101, ack=201), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.02)
+                self._on_packet_received(IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="S", seq=100), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t)
+                self._on_packet_received(IP(src="192.168.1.1", dst=atk_src, ttl=64)/TCP(sport=80, dport=sp, flags="SA", seq=200, ack=101), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.01)
+                self._on_packet_received(IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="A", seq=101, ack=201), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.02)
                 f_load = b"POST /api/upload HTTP/1.1\r\nContent-Length: 999999\r\n\r\n" + b"\xff" * 200
-                self._on_packet_received(IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="PA", seq=101, ack=201)/Raw(f_load), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.03)
-                self._on_packet_received(IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="FA", seq=101+len(f_load), ack=201), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.04)
-                self._on_packet_received(IP(src="192.168.1.1", dst="10.0.0.99", ttl=64)/TCP(sport=80, dport=sp, flags="FA", seq=201, ack=102+len(f_load)), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.05)
-                self._on_packet_received(IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="A", seq=102+len(f_load), ack=202), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.06)
+                self._on_packet_received(IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="PA", seq=101, ack=201)/Raw(f_load), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.03)
+                self._on_packet_received(IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="FA", seq=101+len(f_load), ack=201), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.04)
+                self._on_packet_received(IP(src="192.168.1.1", dst=atk_src, ttl=64)/TCP(sport=80, dport=sp, flags="FA", seq=201, ack=102+len(f_load)), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.05)
+                self._on_packet_received(IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=80, flags="A", seq=102+len(f_load), ack=202), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.06)
             else:  # recon
                 gt_cat = "Port Scan (Reconnaissance)"
-                dp = random.choice([22, 23, 3306, 8080])
-                self._on_packet_received(IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=dp, flags="S", seq=999), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t)
-                self._on_packet_received(IP(src="192.168.1.1", dst="10.0.0.99", ttl=64)/TCP(sport=dp, dport=sp, flags="SA", seq=1999, ack=1000), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.01)
-                self._on_packet_received(IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=dp, flags="FA", seq=1000, ack=2000), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.02)
-                self._on_packet_received(IP(src="192.168.1.1", dst="10.0.0.99", ttl=64)/TCP(sport=dp, dport=sp, flags="FA", seq=2000, ack=1001), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.03)
-                self._on_packet_received(IP(src="10.0.0.99", dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=dp, flags="A", seq=1001, ack=2001), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.04)
+                dp = random.choice([21, 22, 23, 135, 445, 3306])
+                self._on_packet_received(IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=dp, flags="S", seq=999), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t)
+                self._on_packet_received(IP(src="192.168.1.1", dst=atk_src, ttl=64)/TCP(sport=dp, dport=sp, flags="SA", seq=1999, ack=1000), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.01)
+                self._on_packet_received(IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=dp, flags="FA", seq=1000, ack=2000), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.02)
+                self._on_packet_received(IP(src="192.168.1.1", dst=atk_src, ttl=64)/TCP(sport=dp, dport=sp, flags="FA", seq=2000, ack=1001), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.03)
+                self._on_packet_received(IP(src=atk_src, dst="192.168.1.1", ttl=254)/TCP(sport=sp, dport=dp, flags="A", seq=1001, ack=2001), ground_truth_label=1, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.04)
         else:
             ben_type = random.choice(["http", "https", "dns"])
             if ben_type == "dns":
                 gt_cat = "Benign DNS"
-                self._on_packet_received(IP(src="192.168.1.15", dst="8.8.8.8", ttl=64)/UDP(sport=sp, dport=53)/Raw(b"\x00\x01query.test"), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t)
-                self._on_packet_received(IP(src="8.8.8.8", dst="192.168.1.15", ttl=64)/UDP(sport=53, dport=sp)/Raw(b"\x00\x01\x81\x80query.test.answer"), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.01)
+                self._on_packet_received(IP(src=ben_src, dst="8.8.8.8", ttl=64)/UDP(sport=sp, dport=53)/Raw(b"\x00\x01query.test"), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t)
+                self._on_packet_received(IP(src="8.8.8.8", dst=ben_src, ttl=64)/UDP(sport=53, dport=sp)/Raw(b"\x00\x01\x81\x80query.test.answer"), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.01)
             elif ben_type == "https":
                 gt_cat = "Benign HTTPS (TLS)"
-                self._on_packet_received(IP(src="192.168.1.15", dst="142.250.190.46", ttl=64)/TCP(sport=sp, dport=443, flags="S", seq=100), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t)
-                self._on_packet_received(IP(src="142.250.190.46", dst="192.168.1.15", ttl=64)/TCP(sport=443, dport=sp, flags="SA", seq=200, ack=101), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.01)
-                self._on_packet_received(IP(src="192.168.1.15", dst="142.250.190.46", ttl=64)/TCP(sport=sp, dport=443, flags="A", seq=101, ack=201), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.02)
+                self._on_packet_received(IP(src=ben_src, dst="142.250.190.46", ttl=64)/TCP(sport=sp, dport=443, flags="S", seq=100), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t)
+                self._on_packet_received(IP(src="142.250.190.46", dst=ben_src, ttl=64)/TCP(sport=443, dport=sp, flags="SA", seq=200, ack=101), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.01)
+                self._on_packet_received(IP(src=ben_src, dst="142.250.190.46", ttl=64)/TCP(sport=sp, dport=443, flags="A", seq=101, ack=201), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.02)
                 t_load = b"\x16\x03\x01\x00\xa5\x01\x00\x00\xa1\x03\x03TLS_Client_Hello"
-                self._on_packet_received(IP(src="192.168.1.15", dst="142.250.190.46", ttl=64)/TCP(sport=sp, dport=443, flags="PA", seq=101, ack=201)/Raw(t_load), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.03)
+                self._on_packet_received(IP(src=ben_src, dst="142.250.190.46", ttl=64)/TCP(sport=sp, dport=443, flags="PA", seq=101, ack=201)/Raw(t_load), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.03)
                 s_load = b"\x16\x03\x03\x00\x5a\x02\x00\x00\x56\x03\x03TLS_Server_Hello"
-                self._on_packet_received(IP(src="142.250.190.46", dst="192.168.1.15", ttl=64)/TCP(sport=443, dport=sp, flags="PA", seq=201, ack=101+len(t_load))/Raw(s_load), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.04)
-                self._on_packet_received(IP(src="192.168.1.15", dst="142.250.190.46", ttl=64)/TCP(sport=sp, dport=443, flags="FA", seq=101+len(t_load), ack=201+len(s_load)), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.05)
-                self._on_packet_received(IP(src="142.250.190.46", dst="192.168.1.15", ttl=64)/TCP(sport=443, dport=sp, flags="FA", seq=201+len(s_load), ack=102+len(t_load)), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.06)
-                self._on_packet_received(IP(src="192.168.1.15", dst="142.250.190.46", ttl=64)/TCP(sport=sp, dport=443, flags="A", seq=102+len(t_load), ack=202+len(s_load)), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.07)
+                self._on_packet_received(IP(src="142.250.190.46", dst=ben_src, ttl=64)/TCP(sport=443, dport=sp, flags="PA", seq=201, ack=101+len(t_load))/Raw(s_load), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.04)
+                self._on_packet_received(IP(src=ben_src, dst="142.250.190.46", ttl=64)/TCP(sport=sp, dport=443, flags="FA", seq=101+len(t_load), ack=201+len(s_load)), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.05)
+                self._on_packet_received(IP(src="142.250.190.46", dst=ben_src, ttl=64)/TCP(sport=443, dport=sp, flags="FA", seq=201+len(s_load), ack=102+len(t_load)), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.06)
+                self._on_packet_received(IP(src=ben_src, dst="142.250.190.46", ttl=64)/TCP(sport=sp, dport=443, flags="A", seq=102+len(t_load), ack=202+len(s_load)), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.07)
             else:
                 gt_cat = "Benign Web (HTTP)"
-                self._on_packet_received(IP(src="192.168.1.15", dst="93.184.216.34", ttl=64)/TCP(sport=sp, dport=80, flags="S", seq=100), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t)
-                self._on_packet_received(IP(src="93.184.216.34", dst="192.168.1.15", ttl=64)/TCP(sport=80, dport=sp, flags="SA", seq=200, ack=101), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.01)
-                self._on_packet_received(IP(src="192.168.1.15", dst="93.184.216.34", ttl=64)/TCP(sport=sp, dport=80, flags="A", seq=101, ack=201), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.02)
+                self._on_packet_received(IP(src=ben_src, dst="93.184.216.34", ttl=64)/TCP(sport=sp, dport=80, flags="S", seq=100), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t)
+                self._on_packet_received(IP(src="93.184.216.34", dst=ben_src, ttl=64)/TCP(sport=80, dport=sp, flags="SA", seq=200, ack=101), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.01)
+                self._on_packet_received(IP(src=ben_src, dst="93.184.216.34", ttl=64)/TCP(sport=sp, dport=80, flags="A", seq=101, ack=201), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.02)
                 h_req = b"GET /index.html HTTP/1.1\r\nHost: example.com\r\n\r\n"
-                self._on_packet_received(IP(src="192.168.1.15", dst="93.184.216.34", ttl=64)/TCP(sport=sp, dport=80, flags="PA", seq=101, ack=201)/Raw(h_req), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.03)
+                self._on_packet_received(IP(src=ben_src, dst="93.184.216.34", ttl=64)/TCP(sport=sp, dport=80, flags="PA", seq=101, ack=201)/Raw(h_req), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.03)
                 h_resp = b"HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello World!"
-                self._on_packet_received(IP(src="93.184.216.34", dst="192.168.1.15", ttl=64)/TCP(sport=80, dport=sp, flags="PA", seq=201, ack=101+len(h_req))/Raw(h_resp), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.04)
-                self._on_packet_received(IP(src="192.168.1.15", dst="93.184.216.34", ttl=64)/TCP(sport=sp, dport=80, flags="FA", seq=101+len(h_req), ack=201+len(h_resp)), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.05)
-                self._on_packet_received(IP(src="93.184.216.34", dst="192.168.1.15", ttl=64)/TCP(sport=80, dport=sp, flags="FA", seq=201+len(h_resp), ack=102+len(h_req)), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.06)
-                self._on_packet_received(IP(src="192.168.1.15", dst="93.184.216.34", ttl=64)/TCP(sport=sp, dport=80, flags="A", seq=102+len(h_req), ack=202+len(h_resp)), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.07)
+                self._on_packet_received(IP(src="93.184.216.34", dst=ben_src, ttl=64)/TCP(sport=80, dport=sp, flags="PA", seq=201, ack=101+len(h_req))/Raw(h_resp), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.04)
+                self._on_packet_received(IP(src=ben_src, dst="93.184.216.34", ttl=64)/TCP(sport=sp, dport=80, flags="FA", seq=101+len(h_req), ack=201+len(h_resp)), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.05)
+                self._on_packet_received(IP(src="93.184.216.34", dst=ben_src, ttl=64)/TCP(sport=80, dport=sp, flags="FA", seq=201+len(h_resp), ack=102+len(h_req)), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.06)
+                self._on_packet_received(IP(src=ben_src, dst="93.184.216.34", ttl=64)/TCP(sport=sp, dport=80, flags="A", seq=102+len(h_req), ack=202+len(h_resp)), ground_truth_label=0, ground_truth_category=gt_cat, is_synthetic=True, pkt_time=t+0.07)
 
         # Immediately finalize the flow
         self.flow_table.expire_idle_flows(force=True)
